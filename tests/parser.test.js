@@ -25,6 +25,12 @@ assert.deepEqual(parseDocument(sampleDecisionLines), {
   errors: []
 });
 
+const numberWithoutColonLines = sampleDecisionLines.map((line) => ({
+  ...line,
+  text: line.text.replace("Số: 113/QĐ-UBND", "Số 113/QĐ-UBND")
+}));
+assert.equal(parseDocument(numberWithoutColonLines).documentNumber, "113/QĐ-UBND");
+
 // Bộ dữ liệu thứ hai cố ý dùng ngày, địa phương, số hiệu và tên người khác để
 // bảo đảm parser suy ra dữ liệu đầu vào thay vì trả về giá trị mẫu cố định.
 const anotherDecisionLines = [
@@ -69,6 +75,17 @@ assert.equal(
 assert.equal(
   parseDocument(missingAgencyRootLines).errors.includes("Không nhận diện được cơ quan ban hành."),
   false
+);
+
+const colonPersonLines = sampleDecisionLines.map((line) => ({
+  ...line,
+  text: line.text
+    .replace("Về việc điều động viên chức Sự nghiệp giáo dục", "Về việc nâng bậc lương thường xuyên viên chức")
+    .replace("Điều 1. Điều động ông Thái Văn Năm, Giáo viên THCS", "Điều 1. Nâng bậc lương cho bà: vũ thị Lụa")
+}));
+assert.equal(
+  parseDocument(colonPersonLines).summary,
+  "Về việc nâng bậc lương thường xuyên viên chức bà Vũ Thị Lụa"
 );
 
 const corruptedDayLines = sampleDecisionLines.map((line) => ({

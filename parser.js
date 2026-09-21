@@ -128,8 +128,8 @@
     const issueDate = parseIssueDate(fullText);
     if (!issueDate) errors.push("Không nhận diện được ngày ban hành.");
 
-    const numberLine = normalizedLines.find((line) => /^\s*Số\s*:/iu.test(line.text));
-    const documentNumber = numberLine ? clean(numberLine.text.replace(/^\s*Số\s*:\s*/iu, "")) : "";
+    const numberLine = normalizedLines.find((line) => /^\s*Số\s*:?(?:\s|$)/iu.test(line.text));
+    const documentNumber = numberLine ? clean(numberLine.text.replace(/^\s*Số\s*:?[\s]*/iu, "")) : "";
     if (!documentNumber) errors.push("Không nhận diện được số hiệu văn bản.");
 
     const headerLines = normalizedLines.filter((line) => line.top < 18 && line.left < 40);
@@ -144,12 +144,26 @@
     if (!issuingAgency) errors.push("Không nhận diện được cơ quan ban hành.");
 
     const subjectLine = normalizedLines.find((line) => /^Về\s+việc\b/iu.test(line.text));
-    const articleOne = normalizedLines.find((line) => /^Điều\s*1\s*[.:]/iu.test(line.text));
+    const articleOneIndex = normalizedLines.findIndex((line) => /^Điều\s*1\s*[.:]/iu.test(line.text));
+    const articleOneLines = [];
+    if (articleOneIndex >= 0) {
+      for (let index = articleOneIndex; index < normalizedLines.length && articleOneLines.length < 8; index += 1) {
+        if (index > articleOneIndex && /^Điều\s*[2-9]\s*[.:]/iu.test(normalizedLines[index].text)) break;
+        articleOneLines.push(normalizedLines[index].text);
+      }
+    }
+    const personPattern = /(?:^|[^\p{L}])(ông|bà)\s*(?:[:\-]\s*)?([^,.;:]+)/iu;
+    let articleOneText = clean(articleOneLines[0] || "");
+    let personMatch = articleOneText.match(personPattern);
+    if (!personMatch && articleOneLines.length > 1) {
+      articleOneText = clean(articleOneLines.join(" "));
+      personMatch = articleOneText.match(personPattern);
+    }
     let person = "";
-    if (articleOne) {
-      const personMatch = articleOne.text.match(/(ông|bà)\s+([^,.;]+)/iu);
-      if (personMatch) {
-        person = clean(`${personMatch[1].toLocaleLowerCase("vi-VN")} ${normalizePersonName(personMatch[2])}`);
+    if (personMatch) {
+      const personName = clean(personMatch[2].replace(/\s+(?:và|hoặc)\s+(?:ông|bà)\b.*$/iu, ""));
+      if (personName && !/^(?:và|hoặc|các|những)$/iu.test(personName)) {
+        person = clean(`${personMatch[1].toLocaleLowerCase("vi-VN")} ${normalizePersonName(personName)}`);
       }
     }
     let summary = subjectLine ? subjectLine.text.replace(/[.:;]+$/u, "") : "";

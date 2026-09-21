@@ -52,8 +52,8 @@ Nếu đang mở trực tiếp trang danh sách văn bản của một hồ sơ 
 - Loại văn bản: tìm tiêu đề trùng một loại trong danh sách của NextForm.
 - Ngày ban hành: chỉ nhận dạng mẫu số `ngày DD tháng MM năm YYYY`; ký tự OCR không rõ sẽ không được tự suy đoán. Nếu đã chọn, **Ngày mẫu cho cả trang** sẽ làm phương án dự phòng.
 - Cơ quan ban hành: ghép mặc định `ỦY BAN NHÂN DÂN` với dòng địa phương ở phần đầu văn bản, ví dụ `HUYỆN CHƯ SÊ`.
-- Số hiệu: lấy nội dung sau `Số:`.
-- Trích yếu: lấy dòng bắt đầu bằng `Về việc`, rồi ghép `ông/bà + họ tên` từ Điều 1.
+- Số hiệu: lấy nội dung sau `Số:` hoặc `Số` (không có dấu hai chấm).
+- Trích yếu: lấy dòng bắt đầu bằng `Về việc`, rồi ghép `ông/bà + họ tên` từ Điều 1; hỗ trợ cả dạng có dấu `:` sau `ông/bà`.
 
 ## Kiểm thử
 
