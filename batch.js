@@ -106,6 +106,12 @@
     return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
   }
 
+  function dateTemplateInputValue(value) {
+    const normalized = normalizeDateTemplate(value);
+    const match = normalized.match(/^(\d{2})\/(\d{2})\/(\d{4})$/u);
+    return match ? `${match[3]}-${match[2]}-${match[1]}` : "";
+  }
+
   function applyDateTemplate(metadata, template) {
     const normalized = normalizeDateTemplate(template);
     if (!normalized || metadata?.issueDate) return metadata;
@@ -143,6 +149,7 @@
     findNewDossiers,
     hasIdentifiedRows,
     applyDateTemplate,
+    dateTemplateInputValue,
     mergeRuntimeState,
     normalizeDateTemplate,
     paginationState

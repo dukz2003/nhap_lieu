@@ -5,6 +5,7 @@ const {
   findNewDossiers,
   hasIdentifiedRows,
   applyDateTemplate,
+  dateTemplateInputValue,
   mergeRuntimeState,
   normalizeDateTemplate,
   paginationState
@@ -52,6 +53,8 @@ assert.equal(hasIdentifiedRows(documentHeaders, documentRows), true);
 assert.equal(normalizeDateTemplate("4/9/2018"), "04/09/2018");
 assert.equal(normalizeDateTemplate("2018-09-04"), "04/09/2018");
 assert.equal(normalizeDateTemplate("31/02/2018"), "");
+assert.equal(dateTemplateInputValue("04/09/2018"), "2018-09-04");
+assert.equal(dateTemplateInputValue(""), "");
 assert.deepEqual(
   applyDateTemplate({ issueDate: "", errors: ["Không nhận diện được ngày ban hành.", "Lỗi khác"] }, "04/09/2018"),
   { issueDate: "04/09/2018", errors: ["Lỗi khác"] }

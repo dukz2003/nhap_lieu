@@ -536,7 +536,8 @@
     }
     const dateTemplate = document.querySelector("#nextform-batch-date-template");
     if (dateTemplate) {
-      if (dateTemplate.value !== state.dateTemplate) dateTemplate.value = state.dateTemplate;
+      const inputValue = batch.dateTemplateInputValue(state.dateTemplate);
+      if (dateTemplate.value !== inputValue) dateTemplate.value = inputValue;
       dateTemplate.disabled = state.active;
     }
   }
@@ -561,8 +562,8 @@
       <div id="nextform-batch-progress" data-kind="info">Chưa chạy</div>
       <label class="nextform-batch-date-template">
         Ngày mẫu cho cả trang
-        <input id="nextform-batch-date-template" type="text" placeholder="DD/MM/YYYY, ví dụ 04/09/2018" autocomplete="off">
-        <small>Dùng khi PDF không nhận diện được ngày ban hành.</small>
+        <input id="nextform-batch-date-template" type="date" autocomplete="off">
+        <small>Chọn ngày dùng khi PDF không nhận diện được ngày ban hành.</small>
       </label>
       <div class="nextform-batch-actions">
         <button id="nextform-batch-start" type="button">Chạy từ đầu</button>
