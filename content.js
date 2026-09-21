@@ -39,6 +39,20 @@
     element.dispatchEvent(new Event("blur", { bubbles: true }));
   }
 
+  function typeReactSelectSearch(input, value) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("Không thể nhập từ khóa vào ô Loại văn bản.");
+    input.click();
+    input.focus();
+    setter.call(input, value);
+    input.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: value
+    }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   function normalize(value) {
     return parser.comparable(value);
   }
@@ -70,22 +84,21 @@
     const current = item.querySelector(".select__single-value")?.textContent || "";
     if (normalize(current) === normalize(type)) return;
 
-    selectInput.click();
-    selectInput.focus();
+    typeReactSelectSearch(selectInput, type);
 
     const option = await waitFor(
       () => Array.from(document.querySelectorAll("[role='option'], .select__option"))
         .find((element) => normalize(element.textContent) === normalize(type)),
-      20000,
-      `Không tải được lựa chọn Loại văn bản “${type}” sau 20 giây.`
+      5000,
+      `Đã nhập “${type}” nhưng không tìm thấy option tương ứng sau 5 giây.`
     );
     option.click();
     await waitFor(
       () => findField("Nhập ngày ban hành"),
-      20000,
-      "Đã chọn Loại văn bản nhưng các trường metadata chưa xuất hiện sau 20 giây."
+      8000,
+      "Đã chọn Loại văn bản nhưng các trường metadata chưa xuất hiện sau 8 giây."
     );
-    await sleep(1000);
+    await sleep(500);
   }
 
   function valuesFromPanel() {
@@ -242,6 +255,7 @@
     refreshPreview,
     setNativeValue,
     showStatus,
+    typeReactSelectSearch,
     waitFor
   };
 
