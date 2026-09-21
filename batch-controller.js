@@ -602,19 +602,32 @@
         return;
       }
       dateTemplateInput.setCustomValidity("");
+      const currentUrlParams = new URLSearchParams(location.search);
+      const detailContext = currentUrlParams.has("HoSoId");
       const confirmed = window.confirm(
-        "Tiện ích sẽ duyệt toàn bộ hồ sơ trạng thái “Mới”, tự điền và bấm “Lưu thông tin” cho mọi văn bản thiếu metadata. Bạn xác nhận bắt đầu ghi dữ liệu hàng loạt lên hệ thống?"
+        detailContext
+          ? "Tiện ích sẽ xử lý các văn bản thiếu metadata ngay trong hồ sơ đang mở, tự điền và bấm “Lưu thông tin”. Bạn xác nhận bắt đầu ghi dữ liệu lên hệ thống?"
+          : "Tiện ích sẽ duyệt toàn bộ hồ sơ trạng thái “Mới”, tự điền và bấm “Lưu thông tin” cho mọi văn bản thiếu metadata. Bạn xác nhận bắt đầu ghi dữ liệu hàng loạt lên hệ thống?"
       );
       if (!confirmed) return;
       const state = defaultState();
       state.runId = newRunId();
       state.active = true;
-      state.phase = "main";
+      state.phase = detailContext ? "detail" : "main";
       state.cycleComplete = false;
       state.dateTemplate = normalizedDateTemplate;
+      if (detailContext) {
+        state.currentDossierKey = currentUrlParams.get("HoSoId") || "";
+        state.detailPage = currentPagination()?.pageIndex ?? 0;
+      }
       saveState(state, { allowRestart: true });
-      addLog(state, "Bắt đầu xử lý hàng loạt từ trang đầu.");
-      if (location.href !== state.rootUrl) {
+      addLog(
+        state,
+        detailContext
+          ? `Bắt đầu xử lý trực tiếp hồ sơ ${state.currentDossierKey || "đang mở"} từ trang hiện tại.`
+          : "Bắt đầu xử lý hàng loạt từ trang đầu."
+      );
+      if (!detailContext && location.href !== state.rootUrl) {
         location.assign(state.rootUrl);
       } else if (window.__nextFormBatchRunning) {
         location.reload();

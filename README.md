@@ -45,6 +45,8 @@ Nút **Dừng** ngăn tiện ích mở hoặc lưu văn bản tiếp theo. Trạ
 
 > Chế độ hàng loạt thực sự ghi dữ liệu lên hệ thống. Tiện ích luôn yêu cầu xác nhận rõ ràng trước khi bắt đầu.
 
+Nếu đang mở trực tiếp trang danh sách văn bản của một hồ sơ có tham số `HoSoId`, bấm **Chạy từ đầu** sẽ xử lý ngay danh sách đang mở, bắt đầu từ bước tìm nút **Sửa**, không quay về trang danh sách hồ sơ gốc.
+
 ## Quy tắc nhận dạng hiện tại
 
 - Loại văn bản: tìm tiêu đề trùng một loại trong danh sách của NextForm.
