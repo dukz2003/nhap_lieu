@@ -138,6 +138,13 @@
     status.dataset.kind = kind;
   }
 
+  function setPanelValues(metadata) {
+    for (const [key] of FIELD_CONFIG) {
+      const input = document.querySelector(`[data-nextform-field="${key}"]`);
+      if (input) input.value = metadata?.[key] || "";
+    }
+  }
+
   function refreshPreview() {
     try {
       const domTextLines = parser.readPdfTextLayer(document);
@@ -146,10 +153,7 @@
         return null;
       }
       const metadata = parser.parseDocument(domTextLines);
-      for (const [key] of FIELD_CONFIG) {
-        const input = document.querySelector(`[data-nextform-field="${key}"]`);
-        if (input) input.value = metadata[key] || "";
-      }
+      setPanelValues(metadata);
       showStatus(
         metadata.errors.length
           ? `Đã đọc ${domTextLines.length} phần tử DOM. ${metadata.errors.join(" ")}`
@@ -160,6 +164,39 @@
     } catch (error) {
       showStatus(error.message, "error");
       return null;
+    }
+  }
+
+  function prepareManualReview(metadata = null) {
+    const body = document.querySelector("#nextform-tool-body");
+    const toggle = document.querySelector("#nextform-tool-toggle");
+    const coreSection = document.querySelector("#nextform-core-section");
+    const saveButton = document.querySelector("#nextform-tool-fill-save");
+    if (body) body.hidden = false;
+    if (toggle) {
+      toggle.hidden = true;
+      toggle.setAttribute("aria-expanded", "true");
+    }
+    if (coreSection) coreSection.hidden = false;
+    if (saveButton) {
+      saveButton.textContent = "Submit và lưu";
+      saveButton.dataset.manualReview = "true";
+    }
+
+    const parsed = metadata || refreshPreview();
+    if (metadata) setPanelValues(metadata);
+    showStatus(
+      `Chế độ quét thủ công: kiểm tra và sửa đủ 5 trường, sau đó bấm “Submit và lưu”.${parsed?.errors?.length ? ` Cần sửa: ${parsed.errors.join(" ")}` : ""}`,
+      parsed?.errors?.length ? "warn" : "ok"
+    );
+    return parsed;
+  }
+
+  function finishManualReview() {
+    const saveButton = document.querySelector("#nextform-tool-fill-save");
+    if (saveButton) {
+      saveButton.textContent = "Điền và lưu";
+      delete saveButton.dataset.manualReview;
     }
   }
 
@@ -175,15 +212,19 @@
       showStatus("Đã điền đủ 5 trường vào biểu mẫu.", "ok");
 
       if (saveAfterFill) {
-        const confirmed = window.confirm(
-          "Dữ liệu đã được điền vào biểu mẫu. Bạn có chắc muốn bấm “Lưu thông tin” và ghi dữ liệu lên hệ thống không?"
-        );
-        if (!confirmed) {
-          showStatus("Đã điền nhưng chưa lưu. Bạn có thể kiểm tra lại trên biểu mẫu.", "warn");
-          return;
+        const manualReview = saveButton.dataset.manualReview === "true";
+        if (!manualReview) {
+          const confirmed = window.confirm(
+            "Dữ liệu đã được điền vào biểu mẫu. Bạn có chắc muốn bấm “Lưu thông tin” và ghi dữ liệu lên hệ thống không?"
+          );
+          if (!confirmed) {
+            showStatus("Đã điền nhưng chưa lưu. Bạn có thể kiểm tra lại trên biểu mẫu.", "warn");
+            return;
+          }
         }
         const submit = findSaveButton();
         if (!submit) throw new Error("Không tìm thấy nút Lưu thông tin.");
+        if (manualReview) window.dispatchEvent(new CustomEvent("nextform:manual-save-starting"));
         submit.click();
         showStatus("Đã bấm Lưu thông tin. Hãy kiểm tra thông báo của hệ thống.", "ok");
       }
@@ -250,8 +291,10 @@
     fillForm,
     findDialog,
     findSaveButton,
+    finishManualReview,
     normalize,
     parser,
+    prepareManualReview,
     refreshPreview,
     setNativeValue,
     showStatus,
