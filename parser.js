@@ -88,33 +88,15 @@
       .join(" ");
   }
 
-  function normalizeOcrDateNumber(value) {
-    const replacements = {
-      O: "0", o: "0",
-      I: "1", i: "1", l: "1", L: "1", "|": "1",
-      Z: "2", z: "2",
-      Y: "4", y: "4",
-      S: "5", s: "5",
-      b: "6",
-      B: "8",
-      G: "9", g: "9", q: "9"
-    };
-    const normalized = String(value || "")
-      .split("")
-      .map((character) => replacements[character] || character)
-      .join("");
-    return /^\d+$/u.test(normalized) ? Number(normalized) : Number.NaN;
-  }
-
   function parseIssueDate(value) {
     const match = String(value || "").match(
-      /ngày\s*([0-9A-Za-z|]{1,3})\s*tháng\s*([0-9A-Za-z|]{1,3})\s*năm\s*([0-9A-Za-z|]{4})/iu
+      /ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})/u
     );
     if (!match) return "";
 
-    const day = normalizeOcrDateNumber(match[1]);
-    const month = normalizeOcrDateNumber(match[2]);
-    const year = normalizeOcrDateNumber(match[3]);
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
     if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) return "";
     return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
   }

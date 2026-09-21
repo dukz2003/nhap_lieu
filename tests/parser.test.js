@@ -65,14 +65,14 @@ const corruptedDayLines = sampleDecisionLines.map((line) => ({
   ...line,
   text: line.text.replace("ngày 04 tháng 9", "ngày 0y tháng 9")
 }));
-assert.equal(parseDocument(corruptedDayLines).issueDate, "04/09/2018");
-assert.equal(parseDocument(corruptedDayLines).errors.includes("Không nhận diện được ngày ban hành."), false);
+assert.equal(parseDocument(corruptedDayLines).issueDate, "");
+assert.equal(parseDocument(corruptedDayLines).errors.includes("Không nhận diện được ngày ban hành."), true);
 
 const corruptedMonthLines = sampleDecisionLines.map((line) => ({
   ...line,
   text: line.text.replace("ngày 04 tháng 9", "ngày 04 tháng g")
 }));
-assert.equal(parseDocument(corruptedMonthLines).issueDate, "04/09/2018");
-assert.equal(parseDocument(corruptedMonthLines).errors.includes("Không nhận diện được ngày ban hành."), false);
+assert.equal(parseDocument(corruptedMonthLines).issueDate, "");
+assert.equal(parseDocument(corruptedMonthLines).errors.includes("Không nhận diện được ngày ban hành."), true);
 
 console.log("parser.test.js: OK");
