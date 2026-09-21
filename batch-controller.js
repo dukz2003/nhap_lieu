@@ -38,6 +38,8 @@
       currentDossierTitle: "",
       currentDocumentKey: "",
       currentSaveStarted: false,
+      cycleComplete: false,
+      visitedDossiers: [],
       processedDossiers: [],
       attemptedDocuments: {},
       savedCount: 0,
@@ -410,13 +412,15 @@
       const table = await core.waitFor(() => findTable(DOSSIER_HEADERS), 15000);
       ensureCurrentRun(state);
       const data = tableData(table);
-      const targets = batch.findNewDossiers(data.headers, data.rows, new Set(state.processedDossiers));
+      const visited = new Set([...state.processedDossiers, ...state.visitedDossiers]);
+      const targets = batch.findNewDossiers(data.headers, data.rows, visited);
 
       if (targets.length) {
         const target = targets[0];
         const row = data.rowElements[target.rowIndex];
         const open = rowAction(row, (element) => /Xem\s+danh\s+sách/iu.test(element.innerText));
         if (!open) {
+          if (!state.visitedDossiers.includes(target.key)) state.visitedDossiers.push(target.key);
           state.processedDossiers.push(target.key);
           state.failures.push({ dossier: target.key, document: "", message: "Không tìm thấy nút Xem danh sách." });
           addLog(state, `${target.key}: không tìm thấy nút Xem danh sách.`, "error");
@@ -425,6 +429,7 @@
 
         state.currentDossierKey = target.key;
         state.currentDossierTitle = target.title;
+        if (!state.visitedDossiers.includes(target.key)) state.visitedDossiers.push(target.key);
         state.mainPage = currentPagination()?.pageIndex ?? state.mainPage;
         state.detailPage = 0;
         state.phase = "detail";
@@ -449,6 +454,7 @@
 
       state.active = false;
       state.phase = "complete";
+      state.cycleComplete = true;
       addLog(
         state,
         `Hoàn tất: ${state.savedCount} văn bản đã lưu, ${state.failures.length} lỗi, ${state.skippedCount} bỏ qua.`,
@@ -462,6 +468,7 @@
     if (window.__nextFormBatchRunning) return;
     const state = loadState();
     if (!state.active) return;
+    if (state.cycleComplete) return;
     if (!state.runId) {
       state.active = false;
       state.phase = "stopped";
@@ -561,6 +568,7 @@
       state.runId = newRunId();
       state.active = true;
       state.phase = "main";
+      state.cycleComplete = false;
       saveState(state, { allowRestart: true });
       addLog(state, "Bắt đầu xử lý hàng loạt từ trang đầu.");
       if (location.href !== state.rootUrl) {
