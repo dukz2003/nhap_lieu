@@ -58,10 +58,18 @@
 
     return rows.flatMap((row, rowIndex) => {
       const key = cell(row, indexes["Mã văn bản"]) || cell(row, indexes.STT) || `row-${rowIndex}`;
+      if (key === `row-${rowIndex}`) return [];
       if (processedKeys.has(key)) return [];
       const missing = required.filter((name) => !cell(row, indexes[name]));
       return missing.length ? [{ key, rowIndex, missing }] : [];
     });
+  }
+
+  function hasIdentifiedRows(headers, rows) {
+    const indexes = findHeaderIndexes(headers, ["STT", "Mã văn bản"]);
+    return rows.some((row) =>
+      Boolean(cell(row, indexes["Mã văn bản"]) || cell(row, indexes.STT))
+    );
   }
 
   function paginationState(text, pageSize = 10) {
@@ -106,6 +114,7 @@
     findHeaderIndexes,
     findIncompleteDocuments,
     findNewDossiers,
+    hasIdentifiedRows,
     mergeRuntimeState,
     paginationState
   };

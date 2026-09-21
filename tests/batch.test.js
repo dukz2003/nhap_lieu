@@ -3,6 +3,7 @@ const {
   findHeaderIndexes,
   findIncompleteDocuments,
   findNewDossiers,
+  hasIdentifiedRows,
   mergeRuntimeState,
   paginationState
 } = require("../batch.js");
@@ -40,6 +41,11 @@ assert.deepEqual(findIncompleteDocuments(documentHeaders, documentRows, new Set(
   { key: "VB-001", rowIndex: 0, missing: ["Số và ký hiệu"] },
   { key: "VB-002", rowIndex: 1, missing: ["Trích yếu nội dung", "Ngày ban hành", "Cơ quan ban hành"] }
 ]);
+
+const loadingRows = [["", "", "", "", "", "", "", "", "", "", "", ""]];
+assert.equal(hasIdentifiedRows(documentHeaders, loadingRows), false);
+assert.deepEqual(findIncompleteDocuments(documentHeaders, loadingRows, new Set()), []);
+assert.equal(hasIdentifiedRows(documentHeaders, documentRows), true);
 
 assert.deepEqual(paginationState(" 11-20 của 43 "), {
   from: 11,

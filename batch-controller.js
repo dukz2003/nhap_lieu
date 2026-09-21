@@ -16,6 +16,8 @@
     "Mã văn bản", "Số và ký hiệu", "Trích yếu nội dung",
     "Ngày ban hành", "Cơ quan ban hành", "Thao tác"
   ];
+  const LIST_SETTLE_MS = 1200;
+  const PDF_STABLE_MS = 1500;
 
   function rootUrl() {
     const url = new URL(location.href);
@@ -83,6 +85,10 @@
     const error = new Error("Đã dừng theo yêu cầu.");
     error.code = "NEXTFORM_BATCH_STOPPED";
     return error;
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   function ensureCurrentRun(state) {
@@ -172,6 +178,53 @@
     return Array.from(row.querySelectorAll("button, a")).find(matcher) || null;
   }
 
+  function tableShowsNoData(table) {
+    return /không\s+có\s+dữ\s+liệu|no\s+data/iu.test(batch.clean(table?.innerText));
+  }
+
+  async function waitForDocumentTable(state) {
+    const table = await core.waitFor(() => {
+      const candidate = findTable(DOCUMENT_HEADERS);
+      if (!candidate) return null;
+      const data = tableData(candidate);
+      return batch.hasIdentifiedRows(data.headers, data.rows) || tableShowsNoData(candidate)
+        ? candidate
+        : null;
+    }, 30000);
+    ensureCurrentRun(state);
+    await delay(LIST_SETTLE_MS);
+    ensureCurrentRun(state);
+    return core.waitFor(() => {
+      const candidate = findTable(DOCUMENT_HEADERS);
+      if (!candidate) return null;
+      const data = tableData(candidate);
+      return batch.hasIdentifiedRows(data.headers, data.rows) || tableShowsNoData(candidate)
+        ? candidate
+        : null;
+    }, 10000);
+  }
+
+  async function waitForStablePdfLines(state, timeout = 30000) {
+    const started = Date.now();
+    let previousSignature = "";
+    let stableSince = 0;
+
+    while (Date.now() - started < timeout) {
+      ensureCurrentRun(state);
+      const lines = core.parser.readPdfTextLayer(document);
+      const signature = lines.map((line) => line.text).join("\n");
+      if (signature && signature === previousSignature) {
+        if (Date.now() - stableSince >= PDF_STABLE_MS) return lines;
+      } else {
+        previousSignature = signature;
+        stableSince = Date.now();
+      }
+      await delay(150);
+    }
+
+    throw new Error("PDF chưa tải xong lớp văn bản sau 30 giây.");
+  }
+
   function closeEditor() {
     const dialog = core.findDialog();
     const close = dialog?.querySelector("button.btn-close");
@@ -198,10 +251,10 @@
   async function fillSaveAndReadResult(state) {
     await core.waitFor(() => core.findDialog(), 15000);
     ensureCurrentRun(state);
-    await core.waitFor(() => core.parser.readPdfTextLayer(document).length > 0, 20000);
-    ensureCurrentRun(state);
+    await delay(LIST_SETTLE_MS);
+    const pdfLines = await waitForStablePdfLines(state);
 
-    const metadata = core.parser.parseDocument(core.parser.readPdfTextLayer(document));
+    const metadata = core.parser.parseDocument(pdfLines);
     if (metadata.errors.length) throw new Error(metadata.errors.join(" "));
     await core.fillForm(metadata);
     ensureCurrentRun(state);
@@ -261,8 +314,7 @@
 
     while (true) {
       ensureCurrentRun(state);
-      const table = await core.waitFor(() => findTable(DOCUMENT_HEADERS), 15000);
-      ensureCurrentRun(state);
+      const table = await waitForDocumentTable(state);
       const data = tableData(table);
       const targets = batch.findIncompleteDocuments(data.headers, data.rows, documentAttemptedSet(state));
 
@@ -285,6 +337,8 @@
         addLog(state, `${target.key}: đang bổ sung ${target.missing.join(", ")}.`);
         ensureCurrentRun(state);
         edit.click();
+        await delay(LIST_SETTLE_MS);
+        ensureCurrentRun(state);
 
         try {
           const result = await fillSaveAndReadResult(state);
@@ -370,7 +424,8 @@
         addLog(state, `Mở hồ sơ ${target.key}: ${target.title}.`);
         ensureCurrentRun(state);
         open.click();
-        await core.waitFor(() => new URLSearchParams(location.search).has("HoSoId") || findTable(DOCUMENT_HEADERS), 15000);
+        await core.waitFor(() => findTable(DOCUMENT_HEADERS), 20000);
+        await delay(LIST_SETTLE_MS);
         ensureCurrentRun(state);
         await processDetail(state);
         return;
