@@ -88,6 +88,37 @@
       .join(" ");
   }
 
+  function normalizeOcrDateNumber(value) {
+    const replacements = {
+      O: "0", o: "0",
+      I: "1", i: "1", l: "1", L: "1", "|": "1",
+      Z: "2", z: "2",
+      Y: "4", y: "4",
+      S: "5", s: "5",
+      b: "6",
+      B: "8",
+      G: "9", g: "9", q: "9"
+    };
+    const normalized = String(value || "")
+      .split("")
+      .map((character) => replacements[character] || character)
+      .join("");
+    return /^\d+$/u.test(normalized) ? Number(normalized) : Number.NaN;
+  }
+
+  function parseIssueDate(value) {
+    const match = String(value || "").match(
+      /ngày\s*([0-9A-Za-z|]{1,3})\s*tháng\s*([0-9A-Za-z|]{1,3})\s*năm\s*([0-9A-Za-z|]{4})/iu
+    );
+    if (!match) return "";
+
+    const day = normalizeOcrDateNumber(match[1]);
+    const month = normalizeOcrDateNumber(match[2]);
+    const year = normalizeOcrDateNumber(match[3]);
+    if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) return "";
+    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+  }
+
   function parseDocument(lines) {
     const normalizedLines = (lines || [])
       .map((line, index) => ({
@@ -112,10 +143,7 @@
     }
     if (!documentType) errors.push("Không nhận diện được loại văn bản.");
 
-    const dateMatch = fullText.match(/ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})/iu);
-    const issueDate = dateMatch
-      ? [dateMatch[1], dateMatch[2], dateMatch[3]].map((part, index) => index < 2 ? part.padStart(2, "0") : part).join("/")
-      : "";
+    const issueDate = parseIssueDate(fullText);
     if (!issueDate) errors.push("Không nhận diện được ngày ban hành.");
 
     const numberLine = normalizedLines.find((line) => /^\s*Số\s*:/iu.test(line.text));
@@ -171,5 +199,5 @@
       .sort((a, b) => (a.top - b.top) || (a.left - b.left) || (a.index - b.index));
   }
 
-  return { DOCUMENT_TYPES, clean, comparable, parseDocument, readPdfTextLayer };
+  return { DOCUMENT_TYPES, clean, comparable, parseDocument, parseIssueDate, readPdfTextLayer };
 });
