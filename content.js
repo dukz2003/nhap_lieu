@@ -167,7 +167,7 @@
     }
   }
 
-  function prepareManualReview(metadata = null) {
+  async function prepareManualReview(metadata = null) {
     const body = document.querySelector("#nextform-tool-body");
     const toggle = document.querySelector("#nextform-tool-toggle");
     const coreSection = document.querySelector("#nextform-core-section");
@@ -183,6 +183,14 @@
       saveButton.dataset.manualReview = "true";
     }
 
+    if (!metadata) {
+      await waitFor(
+        () => parser.readPdfTextLayer(document).length > 0,
+        30000,
+        "PDF chưa tải xong lớp văn bản sau 30 giây."
+      );
+      await sleep(750);
+    }
     const parsed = metadata || refreshPreview();
     if (metadata) setPanelValues(metadata);
     showStatus(
@@ -224,7 +232,6 @@
         }
         const submit = findSaveButton();
         if (!submit) throw new Error("Không tìm thấy nút Lưu thông tin.");
-        if (manualReview) window.dispatchEvent(new CustomEvent("nextform:manual-save-starting"));
         submit.click();
         showStatus("Đã bấm Lưu thông tin. Hãy kiểm tra thông báo của hệ thống.", "ok");
       }

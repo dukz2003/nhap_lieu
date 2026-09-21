@@ -1,6 +1,6 @@
 {
   "name": "nextform-metadata-filler",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "scripts": {
     "test": "node tests/parser.test.js && node tests/batch.test.js"

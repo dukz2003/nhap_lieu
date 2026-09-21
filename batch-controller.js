@@ -38,8 +38,6 @@
       currentDossierTitle: "",
       currentDocumentKey: "",
       currentSaveStarted: false,
-      manualReason: "",
-      manualMetadata: null,
       processedDossiers: [],
       attemptedDocuments: {},
       savedCount: 0,
@@ -261,12 +259,7 @@
     const pdfLines = await waitForStablePdfLines(state);
 
     const metadata = core.parser.parseDocument(pdfLines);
-    if (metadata.errors.length) {
-      const error = new Error(metadata.errors.join(" "));
-      error.code = "NEXTFORM_MANUAL_REVIEW";
-      error.metadata = metadata;
-      throw error;
-    }
+    if (metadata.errors.length) throw new Error(metadata.errors.join(" "));
     await core.fillForm(metadata);
     ensureCurrentRun(state);
 
@@ -365,19 +358,6 @@
             if (popup) await dismissPopup(popup);
             closeEditor();
             throw error;
-          }
-          if (error.code === "NEXTFORM_MANUAL_REVIEW") {
-            state.active = false;
-            state.phase = "manual";
-            state.manualReason = error.message;
-            state.manualMetadata = error.metadata;
-            saveState(state);
-            addLog(
-              state,
-              `${target.key}: cần quét thủ công. ${error.message} Giữ nguyên cửa sổ PDF và bấm “Quét thủ công”.`,
-              "warn"
-            );
-            return;
           }
           state.failures.push({
             dossier: state.currentDossierKey,
@@ -514,56 +494,6 @@
     }
   }
 
-  async function finishManualSave(state) {
-    try {
-      const popup = await core.waitFor(
-        () => visiblePopup(),
-        30000,
-        "Hệ thống không trả về thông báo kết quả lưu thủ công sau 30 giây."
-      );
-      const message = batch.clean(popup.innerText) || "Popup không có nội dung";
-      const success = Boolean(popup.querySelector(".swal2-success, .swal2-icon-success")) ||
-        /thành công|success/iu.test(message);
-      await dismissPopup(popup);
-      if (!success) throw new Error(message);
-
-      const documentKey = state.currentDocumentKey;
-      markDocumentAttempted(state, documentKey);
-      state.savedCount += 1;
-      state.currentDocumentKey = "";
-      state.currentSaveStarted = false;
-      state.manualReason = "";
-      state.manualMetadata = null;
-      state.phase = "detail";
-      state.active = true;
-      saveState(state, { allowRestart: true });
-      addLog(state, `${documentKey}: lưu thủ công thành công. Tiếp tục chạy Auto.`, "ok");
-      core.finishManualReview();
-      try {
-        await core.waitFor(() => !core.findDialog(), 8000);
-      } catch {
-        closeEditor();
-      }
-      setTimeout(runBatch, 250);
-    } catch (error) {
-      state.active = false;
-      state.phase = "manual";
-      state.currentSaveStarted = false;
-      state.manualReason = error.message;
-      saveState(state);
-      addLog(state, `Lưu thủ công chưa thành công: ${error.message}`, "error");
-      core.showStatus(`Lưu thủ công chưa thành công: ${error.message}`, "error");
-    }
-  }
-
-  function handleManualSaveStarting() {
-    const state = loadState();
-    if (state.phase !== "manual" || !state.currentDocumentKey || !core.findDialog()) return;
-    state.currentSaveStarted = true;
-    saveState(state);
-    finishManualSave(state);
-  }
-
   function updateUi(state = loadState()) {
     const progress = document.querySelector("#nextform-batch-progress");
     const log = document.querySelector("#nextform-batch-log");
@@ -577,10 +507,8 @@
           ? `Hoàn tất · ${state.savedCount} đã lưu · ${state.failures.length} lỗi`
           : state.phase === "stopped"
             ? `Đã dừng · ${state.savedCount} đã lưu · ${state.failures.length} lỗi`
-          : state.phase === "manual"
-            ? `Chờ quét thủ công · ${state.savedCount} đã lưu`
           : "Chưa chạy";
-      progress.dataset.kind = state.phase === "manual" || state.failures.length
+      progress.dataset.kind = state.failures.length
         ? "warn"
         : state.active || state.phase === "complete" ? "ok" : "info";
     }
@@ -589,11 +517,11 @@
         `<div data-kind="${item.kind}"><time>${item.time}</time> ${escapeHtml(item.message)}</div>`
       ).join("") || "<div>Chưa có nhật ký.</div>";
     }
-    if (start) start.disabled = state.active || state.phase === "manual";
+    if (start) start.disabled = state.active;
     if (stop) stop.disabled = !state.active;
     if (manual) {
-      manual.hidden = state.phase !== "manual";
-      manual.disabled = state.phase !== "manual" || !core.findDialog();
+      manual.hidden = false;
+      manual.disabled = state.active || !core.findDialog();
     }
   }
 
@@ -618,7 +546,7 @@
       <div class="nextform-batch-actions">
         <button id="nextform-batch-start" type="button">Chạy từ đầu</button>
         <button id="nextform-batch-stop" type="button">Dừng</button>
-        <button id="nextform-batch-manual-scan" type="button" hidden>Quét thủ công</button>
+        <button id="nextform-batch-manual-scan" type="button">Quét thủ công</button>
       </div>
       <div id="nextform-batch-log"></div>
     `;
@@ -651,18 +579,43 @@
       addLog(state, "Đã yêu cầu dừng. Tiện ích sẽ không mở hoặc lưu văn bản tiếp theo.", "warn");
     });
 
-    section.querySelector("#nextform-batch-manual-scan").addEventListener("click", () => {
+    section.querySelector("#nextform-batch-manual-scan").addEventListener("click", async () => {
       const state = loadState();
-      if (state.phase !== "manual" || !core.findDialog()) return;
-      core.prepareManualReview(state.manualMetadata);
-      addLog(state, `${state.currentDocumentKey}: đã đưa dữ liệu parse lên giao diện để kiểm tra thủ công.`, "info");
+      if (state.active || !core.findDialog()) return;
+      const manualButton = section.querySelector("#nextform-batch-manual-scan");
+      manualButton.disabled = true;
+      try {
+        await core.prepareManualReview();
+        addLog(state, "Đã đưa dữ liệu PDF đang mở lên giao diện để kiểm tra thủ công.", "info");
+      } catch (error) {
+        core.showStatus(error.message, "error");
+        addLog(state, `Quét thủ công chưa thành công: ${error.message}`, "error");
+      } finally {
+        updateUi();
+      }
     });
 
     updateUi();
   }
 
   createBatchUi();
-  window.addEventListener("nextform:manual-save-starting", handleManualSaveStarting);
+  let dialogRefreshTimer = 0;
+  let dialogWasOpen = Boolean(core.findDialog());
+  const dialogObserver = new MutationObserver(() => {
+    clearTimeout(dialogRefreshTimer);
+    dialogRefreshTimer = setTimeout(() => {
+      const dialogIsOpen = Boolean(core.findDialog());
+      if (dialogIsOpen === dialogWasOpen) return;
+      dialogWasOpen = dialogIsOpen;
+      if (!dialogIsOpen) {
+        core.finishManualReview();
+        const coreSection = document.querySelector("#nextform-core-section");
+        if (coreSection) coreSection.hidden = true;
+      }
+      updateUi();
+    }, 120);
+  });
+  dialogObserver.observe(document.body, { childList: true, subtree: true });
   if (!core.findDialog()) {
     const coreSection = document.querySelector("#nextform-core-section");
     if (coreSection) coreSection.hidden = true;
