@@ -89,6 +89,33 @@
     };
   }
 
+  function normalizeDateTemplate(value) {
+    const raw = clean(value).replace(/[.-]/g, "/");
+    let match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/u);
+    if (!match) {
+      const iso = raw.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/u);
+      if (iso) match = [iso[0], iso[3], iso[2], iso[1]];
+    }
+    if (!match) return "";
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+  }
+
+  function applyDateTemplate(metadata, template) {
+    const normalized = normalizeDateTemplate(template);
+    if (!normalized || metadata?.issueDate) return metadata;
+    return {
+      ...metadata,
+      issueDate: normalized,
+      errors: (metadata.errors || []).filter((error) => !/ngày ban hành/iu.test(error))
+    };
+  }
+
   function mergeRuntimeState(persisted, incoming, allowRestart = false) {
     if (!persisted || allowRestart) return incoming;
 
@@ -115,7 +142,9 @@
     findIncompleteDocuments,
     findNewDossiers,
     hasIdentifiedRows,
+    applyDateTemplate,
     mergeRuntimeState,
+    normalizeDateTemplate,
     paginationState
   };
 });

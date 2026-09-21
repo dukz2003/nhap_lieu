@@ -39,6 +39,8 @@ Tại trang `https://sdoc.nextform.vn/nhap-lieu?PhongId=...`, bảng tiện ích
 5. Đọc DOM của PDF, điền metadata, bấm **Lưu thông tin** và đọc popup kết quả.
 6. Nếu lưu thất bại hoặc parser thiếu dữ liệu, ghi lỗi vào nhật ký, đóng cửa sổ sửa và tiếp tục văn bản kế tiếp.
 
+Nếu các văn bản trong cùng một trang có chung ngày ban hành nhưng một số PDF không nhận diện được ngày, nhập ngày vào ô **Ngày mẫu cho cả trang** theo dạng `DD/MM/YYYY` (ví dụ `04/09/2018`) trước khi bấm **Chạy từ đầu**. Ngày mẫu chỉ được dùng khi trường **Ngày ban hành** đang trống; ngày đọc được từ PDF vẫn được ưu tiên. Khi mở một văn bản lỗi và bấm **Quét thủ công**, ngày mẫu cũng được đưa vào bảng xem trước để bạn kiểm tra trước khi **Submit và lưu**.
+
 Nút **Dừng** ngăn tiện ích mở hoặc lưu văn bản tiếp theo. Trạng thái chạy được lưu trong `sessionStorage` của tab, vì vậy tiện ích có thể tiếp tục sau khi trang điều hướng hoặc tải lại. Nếu trang tải lại ngay sau khi đã bấm lưu nhưng chưa đọc được popup, văn bản đó được đánh dấu *kết quả chưa xác định* và không tự lưu lần hai để tránh trùng dữ liệu.
 
 > Chế độ hàng loạt thực sự ghi dữ liệu lên hệ thống. Tiện ích luôn yêu cầu xác nhận rõ ràng trước khi bắt đầu.

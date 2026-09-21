@@ -303,6 +303,7 @@
     parser,
     prepareManualReview,
     refreshPreview,
+    setPanelValues,
     setNativeValue,
     showStatus,
     typeReactSelectSearch,

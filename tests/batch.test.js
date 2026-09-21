@@ -4,7 +4,9 @@ const {
   findIncompleteDocuments,
   findNewDossiers,
   hasIdentifiedRows,
+  applyDateTemplate,
   mergeRuntimeState,
+  normalizeDateTemplate,
   paginationState
 } = require("../batch.js");
 
@@ -46,6 +48,14 @@ const loadingRows = [["", "", "", "", "", "", "", "", "", "", "", ""]];
 assert.equal(hasIdentifiedRows(documentHeaders, loadingRows), false);
 assert.deepEqual(findIncompleteDocuments(documentHeaders, loadingRows, new Set()), []);
 assert.equal(hasIdentifiedRows(documentHeaders, documentRows), true);
+
+assert.equal(normalizeDateTemplate("4/9/2018"), "04/09/2018");
+assert.equal(normalizeDateTemplate("2018-09-04"), "04/09/2018");
+assert.equal(normalizeDateTemplate("31/02/2018"), "");
+assert.deepEqual(
+  applyDateTemplate({ issueDate: "", errors: ["Không nhận diện được ngày ban hành.", "Lỗi khác"] }, "04/09/2018"),
+  { issueDate: "04/09/2018", errors: ["Lỗi khác"] }
+);
 
 assert.deepEqual(paginationState(" 11-20 của 43 "), {
   from: 11,

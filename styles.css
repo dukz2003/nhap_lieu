@@ -103,6 +103,30 @@
   font-weight: 800;
 }
 
+.nextform-batch-date-template {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.nextform-batch-date-template input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: #0f172a;
+  font: 12px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.nextform-batch-date-template small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 500;
+}
+
 #nextform-batch-progress {
   padding: 7px 9px;
   border-radius: 8px;

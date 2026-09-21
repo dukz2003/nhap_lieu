@@ -38,6 +38,7 @@
       currentDossierTitle: "",
       currentDocumentKey: "",
       currentSaveStarted: false,
+      dateTemplate: "",
       cycleComplete: false,
       visitedDossiers: [],
       processedDossiers: [],
@@ -260,7 +261,10 @@
     await delay(LIST_SETTLE_MS);
     const pdfLines = await waitForStablePdfLines(state);
 
-    const metadata = core.parser.parseDocument(pdfLines);
+    const metadata = batch.applyDateTemplate(
+      core.parser.parseDocument(pdfLines),
+      state.dateTemplate
+    );
     if (metadata.errors.length) throw new Error(metadata.errors.join(" "));
     await core.fillForm(metadata);
     ensureCurrentRun(state);
@@ -530,6 +534,11 @@
       manual.hidden = false;
       manual.disabled = state.active || !core.findDialog();
     }
+    const dateTemplate = document.querySelector("#nextform-batch-date-template");
+    if (dateTemplate) {
+      if (dateTemplate.value !== state.dateTemplate) dateTemplate.value = state.dateTemplate;
+      dateTemplate.disabled = state.active;
+    }
   }
 
   function escapeHtml(value) {
@@ -550,6 +559,11 @@
     section.innerHTML = `
       <div class="nextform-batch-title">Xử lý hàng loạt</div>
       <div id="nextform-batch-progress" data-kind="info">Chưa chạy</div>
+      <label class="nextform-batch-date-template">
+        Ngày mẫu cho cả trang
+        <input id="nextform-batch-date-template" type="text" placeholder="DD/MM/YYYY, ví dụ 04/09/2018" autocomplete="off">
+        <small>Dùng khi PDF không nhận diện được ngày ban hành.</small>
+      </label>
       <div class="nextform-batch-actions">
         <button id="nextform-batch-start" type="button">Chạy từ đầu</button>
         <button id="nextform-batch-stop" type="button">Dừng</button>
@@ -559,7 +573,34 @@
     `;
     body.insertBefore(section, status);
 
+    section.querySelector("#nextform-batch-date-template").addEventListener("change", (event) => {
+      const state = loadState();
+      const raw = event.target.value.trim();
+      const normalized = batch.normalizeDateTemplate(raw);
+      if (raw && !normalized) {
+        event.target.setCustomValidity("Nhập ngày theo dạng DD/MM/YYYY.");
+        core.showStatus("Ngày mẫu không hợp lệ. Hãy nhập theo dạng DD/MM/YYYY.", "error");
+        return;
+      }
+      event.target.setCustomValidity("");
+      state.dateTemplate = normalized;
+      saveState(state);
+      core.showStatus(
+        normalized ? `Đã đặt ngày mẫu ${normalized} cho cả trang.` : "Đã xóa ngày mẫu.",
+        normalized ? "ok" : "info"
+      );
+    });
+
     section.querySelector("#nextform-batch-start").addEventListener("click", () => {
+      const dateTemplateInput = section.querySelector("#nextform-batch-date-template");
+      const rawDateTemplate = dateTemplateInput.value.trim();
+      const normalizedDateTemplate = batch.normalizeDateTemplate(rawDateTemplate);
+      if (rawDateTemplate && !normalizedDateTemplate) {
+        dateTemplateInput.setCustomValidity("Nhập ngày theo dạng DD/MM/YYYY.");
+        core.showStatus("Ngày mẫu không hợp lệ. Hãy nhập theo dạng DD/MM/YYYY.", "error");
+        return;
+      }
+      dateTemplateInput.setCustomValidity("");
       const confirmed = window.confirm(
         "Tiện ích sẽ duyệt toàn bộ hồ sơ trạng thái “Mới”, tự điền và bấm “Lưu thông tin” cho mọi văn bản thiếu metadata. Bạn xác nhận bắt đầu ghi dữ liệu hàng loạt lên hệ thống?"
       );
@@ -569,6 +610,7 @@
       state.active = true;
       state.phase = "main";
       state.cycleComplete = false;
+      state.dateTemplate = normalizedDateTemplate;
       saveState(state, { allowRestart: true });
       addLog(state, "Bắt đầu xử lý hàng loạt từ trang đầu.");
       if (location.href !== state.rootUrl) {
@@ -593,7 +635,12 @@
       const manualButton = section.querySelector("#nextform-batch-manual-scan");
       manualButton.disabled = true;
       try {
-        await core.prepareManualReview();
+        const parsed = await core.prepareManualReview();
+        const patched = batch.applyDateTemplate(parsed, state.dateTemplate);
+        if (patched !== parsed) {
+          core.setPanelValues(patched);
+          core.showStatus(`Đã áp dụng ngày mẫu ${state.dateTemplate}. Kiểm tra các trường rồi bấm “Submit và lưu”.`, "warn");
+        }
         addLog(state, "Đã đưa dữ liệu PDF đang mở lên giao diện để kiểm tra thủ công.", "info");
       } catch (error) {
         core.showStatus(error.message, "error");
