@@ -136,7 +136,7 @@
     const agencyRoot = headerLines.find((line) => /(?:UỶ|ỦY)\s+BAN\s+NHÂN\s+DÂN/iu.test(line.text));
     const locality = headerLines.find((line) => /^(?:TỈNH|THÀNH PHỐ|HUYỆN|THỊ XÃ|QUẬN|XÃ|PHƯỜNG|THỊ TRẤN)(?:\s|$)/iu.test(line.text));
     const recoveredLocality = recoverLocality(normalizedLines, locality?.text || "");
-    let issuingAgency = agencyRoot ? agencyRoot.text : "";
+    let issuingAgency = agencyRoot ? agencyRoot.text : (recoveredLocality ? "ỦY BAN NHÂN DÂN" : "");
     if (recoveredLocality && !comparable(issuingAgency).includes(comparable(recoveredLocality))) {
       issuingAgency = clean(`${issuingAgency} ${recoveredLocality}`);
     }

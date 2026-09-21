@@ -61,6 +61,16 @@ assert.equal(
   "Về việc điều động viên chức Sự nghiệp giáo dục bà Nguyễn Thị Kiên"
 );
 
+const missingAgencyRootLines = sampleDecisionLines.filter((line) => !/^UỶ BAN NHÂN DÂN$/iu.test(line.text));
+assert.equal(
+  parseDocument(missingAgencyRootLines).issuingAgency,
+  "ỦY BAN NHÂN DÂN HUYỆN CHƯ SÊ"
+);
+assert.equal(
+  parseDocument(missingAgencyRootLines).errors.includes("Không nhận diện được cơ quan ban hành."),
+  false
+);
+
 const corruptedDayLines = sampleDecisionLines.map((line) => ({
   ...line,
   text: line.text.replace("ngày 04 tháng 9", "ngày 0y tháng 9")
