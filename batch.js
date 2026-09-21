@@ -81,12 +81,32 @@
     };
   }
 
+  function mergeRuntimeState(persisted, incoming, allowRestart = false) {
+    if (!persisted || allowRestart) return incoming;
+
+    if (persisted.runId && incoming.runId && persisted.runId !== incoming.runId) {
+      return persisted;
+    }
+
+    if (persisted.active === false && incoming.active === true) {
+      return {
+        ...incoming,
+        active: false,
+        phase: persisted.phase,
+        logs: persisted.logs || incoming.logs
+      };
+    }
+
+    return incoming;
+  }
+
   return {
     clean,
     comparable,
     findHeaderIndexes,
     findIncompleteDocuments,
     findNewDossiers,
+    mergeRuntimeState,
     paginationState
   };
 });

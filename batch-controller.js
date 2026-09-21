@@ -26,6 +26,7 @@
 
   function defaultState() {
     return {
+      runId: "",
       active: false,
       phase: "idle",
       rootUrl: rootUrl(),
@@ -55,9 +56,11 @@
     }
   }
 
-  function saveState(state) {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    updateUi(state);
+  function saveState(state, options = {}) {
+    const nextState = batch.mergeRuntimeState(loadState(), state, options.allowRestart === true);
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+    updateUi(nextState);
+    return nextState;
   }
 
   function addLog(state, message, kind = "info") {
@@ -70,6 +73,24 @@
     if (!element) return false;
     const style = getComputedStyle(element);
     return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
+  }
+
+  function newRunId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function stoppedError() {
+    const error = new Error("Đã dừng theo yêu cầu.");
+    error.code = "NEXTFORM_BATCH_STOPPED";
+    return error;
+  }
+
+  function ensureCurrentRun(state) {
+    const latest = loadState();
+    if (!latest.active || !state.runId || latest.runId !== state.runId) {
+      throw stoppedError();
+    }
+    return latest;
   }
 
   function tableHeaders(table) {
@@ -114,7 +135,7 @@
     return `${currentPagination()?.from || 0}:${batch.clean(firstRow?.innerText || "")}`;
   }
 
-  async function clickPager(direction, requiredHeaders) {
+  async function clickPager(state, direction, requiredHeaders) {
     const icons = {
       first: "fa-angle-double-left",
       previous: "fa-angle-left",
@@ -124,22 +145,25 @@
     const pager = findPagination();
     const button = pager?.querySelector(`i.${icons[direction]}`)?.closest("button");
     if (!button || button.disabled || button.classList.contains("disabled")) return false;
+    ensureCurrentRun(state);
     const before = pageSignature(requiredHeaders);
     button.click();
     await core.waitFor(() => pageSignature(requiredHeaders) !== before, 10000);
+    ensureCurrentRun(state);
     return true;
   }
 
-  async function goToPage(targetPage, requiredHeaders) {
+  async function goToPage(state, targetPage, requiredHeaders) {
     await core.waitFor(() => findTable(requiredHeaders), 15000);
+    ensureCurrentRun(state);
     let pagination = currentPagination();
     if (!pagination) return;
     if (pagination.pageIndex > targetPage) {
-      await clickPager("first", requiredHeaders);
+      await clickPager(state, "first", requiredHeaders);
       pagination = currentPagination();
     }
     while (pagination && pagination.pageIndex < targetPage) {
-      if (!(await clickPager("next", requiredHeaders))) break;
+      if (!(await clickPager(state, "next", requiredHeaders))) break;
       pagination = currentPagination();
     }
   }
@@ -173,22 +197,25 @@
 
   async function fillSaveAndReadResult(state) {
     await core.waitFor(() => core.findDialog(), 15000);
+    ensureCurrentRun(state);
     await core.waitFor(() => core.parser.readPdfTextLayer(document).length > 0, 20000);
+    ensureCurrentRun(state);
 
     const metadata = core.parser.parseDocument(core.parser.readPdfTextLayer(document));
     if (metadata.errors.length) throw new Error(metadata.errors.join(" "));
     await core.fillForm(metadata);
+    ensureCurrentRun(state);
 
-    const latest = loadState();
-    if (!latest.active) throw new Error("Đã dừng trước khi lưu.");
     const submit = core.findSaveButton();
     if (!submit) throw new Error("Không tìm thấy nút Lưu thông tin.");
 
     state.currentSaveStarted = true;
     saveState(state);
+    ensureCurrentRun(state);
     submit.click();
 
     const popup = await core.waitFor(() => visiblePopup(), 20000);
+    ensureCurrentRun(state);
     const message = batch.clean(popup.innerText) || "Popup không có nội dung";
     const success = Boolean(popup.querySelector(".swal2-success, .swal2-icon-success")) ||
       /thành công|success/iu.test(message);
@@ -230,10 +257,12 @@
       addLog(state, "Bỏ qua một văn bản có kết quả lưu chưa xác định để tránh lưu trùng.", "warn");
     }
 
-    await goToPage(state.detailPage, DOCUMENT_HEADERS);
+    await goToPage(state, state.detailPage, DOCUMENT_HEADERS);
 
-    while (loadState().active) {
+    while (true) {
+      ensureCurrentRun(state);
       const table = await core.waitFor(() => findTable(DOCUMENT_HEADERS), 15000);
+      ensureCurrentRun(state);
       const data = tableData(table);
       const targets = batch.findIncompleteDocuments(data.headers, data.rows, documentAttemptedSet(state));
 
@@ -254,6 +283,7 @@
         state.currentDocumentKey = target.key;
         saveState(state);
         addLog(state, `${target.key}: đang bổ sung ${target.missing.join(", ")}.`);
+        ensureCurrentRun(state);
         edit.click();
 
         try {
@@ -261,6 +291,12 @@
           state.savedCount += 1;
           addLog(state, `${target.key}: ${result}`, "ok");
         } catch (error) {
+          if (error.code === "NEXTFORM_BATCH_STOPPED") {
+            const popup = visiblePopup();
+            if (popup) await dismissPopup(popup);
+            closeEditor();
+            throw error;
+          }
           state.failures.push({
             dossier: state.currentDossierKey,
             document: target.key,
@@ -282,7 +318,7 @@
 
       const pagination = currentPagination();
       if (pagination && !pagination.isLast) {
-        await clickPager("next", DOCUMENT_HEADERS);
+        await clickPager(state, "next", DOCUMENT_HEADERS);
         state.detailPage = currentPagination()?.pageIndex ?? state.detailPage + 1;
         saveState(state);
         continue;
@@ -296,6 +332,7 @@
       state.detailPage = 0;
       state.currentDocumentKey = "";
       saveState(state);
+      ensureCurrentRun(state);
       location.assign(state.rootUrl);
       return;
     }
@@ -304,10 +341,12 @@
   async function processMain(state) {
     state.phase = "main";
     saveState(state);
-    await goToPage(state.mainPage, DOSSIER_HEADERS);
+    await goToPage(state, state.mainPage, DOSSIER_HEADERS);
 
-    while (loadState().active) {
+    while (true) {
+      ensureCurrentRun(state);
       const table = await core.waitFor(() => findTable(DOSSIER_HEADERS), 15000);
+      ensureCurrentRun(state);
       const data = tableData(table);
       const targets = batch.findNewDossiers(data.headers, data.rows, new Set(state.processedDossiers));
 
@@ -329,15 +368,17 @@
         state.phase = "detail";
         saveState(state);
         addLog(state, `Mở hồ sơ ${target.key}: ${target.title}.`);
+        ensureCurrentRun(state);
         open.click();
         await core.waitFor(() => new URLSearchParams(location.search).has("HoSoId") || findTable(DOCUMENT_HEADERS), 15000);
+        ensureCurrentRun(state);
         await processDetail(state);
         return;
       }
 
       const pagination = currentPagination();
       if (pagination && !pagination.isLast) {
-        await clickPager("next", DOSSIER_HEADERS);
+        await clickPager(state, "next", DOSSIER_HEADERS);
         state.mainPage = currentPagination()?.pageIndex ?? state.mainPage + 1;
         saveState(state);
         continue;
@@ -358,6 +399,12 @@
     if (window.__nextFormBatchRunning) return;
     const state = loadState();
     if (!state.active) return;
+    if (!state.runId) {
+      state.active = false;
+      state.phase = "stopped";
+      addLog(state, "Đã dừng phiên chạy cũ sau khi cập nhật tiện ích. Hãy bấm Chạy từ đầu để tạo phiên mới.", "warn");
+      return;
+    }
     window.__nextFormBatchRunning = true;
     try {
       if (new URLSearchParams(location.search).has("HoSoId")) {
@@ -367,6 +414,10 @@
       }
     } catch (error) {
       const latest = loadState();
+      if (error.code === "NEXTFORM_BATCH_STOPPED" || !latest.active || latest.runId !== state.runId) {
+        updateUi(latest);
+        return;
+      }
       latest.active = false;
       latest.phase = "error";
       latest.failures.push({
@@ -390,6 +441,8 @@
         ? `Đang chạy · ${state.savedCount} đã lưu · ${state.failures.length} lỗi`
         : state.phase === "complete"
           ? `Hoàn tất · ${state.savedCount} đã lưu · ${state.failures.length} lỗi`
+          : state.phase === "stopped"
+            ? `Đã dừng · ${state.savedCount} đã lưu · ${state.failures.length} lỗi`
           : "Chưa chạy";
       progress.dataset.kind = state.failures.length ? "warn" : state.active || state.phase === "complete" ? "ok" : "info";
     }
@@ -434,11 +487,15 @@
       );
       if (!confirmed) return;
       const state = defaultState();
+      state.runId = newRunId();
       state.active = true;
       state.phase = "main";
+      saveState(state, { allowRestart: true });
       addLog(state, "Bắt đầu xử lý hàng loạt từ trang đầu.");
       if (location.href !== state.rootUrl) {
         location.assign(state.rootUrl);
+      } else if (window.__nextFormBatchRunning) {
+        location.reload();
       } else {
         runBatch();
       }

@@ -3,6 +3,7 @@ const {
   findHeaderIndexes,
   findIncompleteDocuments,
   findNewDossiers,
+  mergeRuntimeState,
   paginationState
 } = require("../batch.js");
 
@@ -57,5 +58,37 @@ assert.deepEqual(paginationState("41-43 của 43"), {
   isFirst: false,
   isLast: true
 });
+
+const stoppedState = {
+  runId: "run-1",
+  active: false,
+  phase: "stopped",
+  savedCount: 2,
+  logs: [{ message: "Đã dừng" }]
+};
+const staleRunningState = {
+  runId: "run-1",
+  active: true,
+  phase: "detail",
+  savedCount: 3,
+  logs: [{ message: "Tác vụ cũ vừa hoàn tất" }]
+};
+
+assert.deepEqual(mergeRuntimeState(stoppedState, staleRunningState), {
+  ...staleRunningState,
+  active: false,
+  phase: "stopped",
+  logs: stoppedState.logs
+});
+
+assert.deepEqual(
+  mergeRuntimeState(stoppedState, { ...staleRunningState, runId: "run-2" }),
+  stoppedState
+);
+
+assert.deepEqual(
+  mergeRuntimeState(stoppedState, { ...staleRunningState, runId: "run-2" }, true),
+  { ...staleRunningState, runId: "run-2" }
+);
 
 console.log("batch.test.js: OK");
