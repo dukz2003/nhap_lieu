@@ -17,14 +17,14 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async function waitFor(find, timeout = 5000) {
+  async function waitFor(find, timeout = 5000, errorMessage = "Trang chưa hiển thị trường cần thao tác.") {
     const started = Date.now();
     while (Date.now() - started < timeout) {
       const result = find();
       if (result) return result;
       await sleep(80);
     }
-    throw new Error("Trang chưa hiển thị trường cần thao tác.");
+    throw new Error(errorMessage);
   }
 
   function setNativeValue(element, value) {
@@ -73,10 +73,19 @@
     selectInput.click();
     selectInput.focus();
 
-    const option = await waitFor(() => Array.from(document.querySelectorAll("[role='option'], .select__option"))
-      .find((element) => normalize(element.textContent) === normalize(type)));
+    const option = await waitFor(
+      () => Array.from(document.querySelectorAll("[role='option'], .select__option"))
+        .find((element) => normalize(element.textContent) === normalize(type)),
+      20000,
+      `Không tải được lựa chọn Loại văn bản “${type}” sau 20 giây.`
+    );
     option.click();
-    await waitFor(() => findField("Nhập ngày ban hành"));
+    await waitFor(
+      () => findField("Nhập ngày ban hành"),
+      20000,
+      "Đã chọn Loại văn bản nhưng các trường metadata chưa xuất hiện sau 20 giây."
+    );
+    await sleep(1000);
   }
 
   function valuesFromPanel() {
@@ -94,8 +103,13 @@
       ["Nhập trích yếu", values.summary]
     ];
     for (const [placeholder, value] of mappings) {
-      const field = await waitFor(() => findField(placeholder));
+      const field = await waitFor(
+        () => findField(placeholder),
+        20000,
+        `Không tìm thấy trường “${placeholder}” sau 20 giây.`
+      );
       setNativeValue(field, value);
+      await sleep(150);
     }
   }
 

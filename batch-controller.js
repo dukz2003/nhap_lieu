@@ -249,7 +249,11 @@
   }
 
   async function fillSaveAndReadResult(state) {
-    await core.waitFor(() => core.findDialog(), 15000);
+    await core.waitFor(
+      () => core.findDialog(),
+      20000,
+      "Không mở được cửa sổ cập nhật văn bản sau 20 giây."
+    );
     ensureCurrentRun(state);
     await delay(LIST_SETTLE_MS);
     const pdfLines = await waitForStablePdfLines(state);
@@ -267,7 +271,11 @@
     ensureCurrentRun(state);
     submit.click();
 
-    const popup = await core.waitFor(() => visiblePopup(), 20000);
+    const popup = await core.waitFor(
+      () => visiblePopup(),
+      30000,
+      "Hệ thống không trả về thông báo kết quả lưu sau 30 giây."
+    );
     ensureCurrentRun(state);
     const message = batch.clean(popup.innerText) || "Popup không có nội dung";
     const success = Boolean(popup.querySelector(".swal2-success, .swal2-icon-success")) ||
