@@ -45,7 +45,11 @@
 
   function findDialog() {
     return Array.from(document.querySelectorAll("[role='dialog']"))
-      .find((dialog) => /Lưu\s+thông\s+tin/iu.test(dialog.innerText));
+      .find((dialog) =>
+        dialog.getClientRects().length > 0 &&
+        getComputedStyle(dialog).visibility !== "hidden" &&
+        /Lưu\s+thông\s+tin/iu.test(dialog.innerText)
+      );
   }
 
   function findField(placeholder) {
@@ -110,7 +114,10 @@
   function refreshPreview() {
     try {
       const domTextLines = parser.readPdfTextLayer(document);
-      if (!domTextLines.length) throw new Error("Chưa đọc được lớp chữ của PDF. Hãy đợi PDF tải xong rồi thử lại.");
+      if (!domTextLines.length) {
+        showStatus("Trang danh sách: dùng phần Xử lý hàng loạt bên dưới.", "info");
+        return null;
+      }
       const metadata = parser.parseDocument(domTextLines);
       for (const [key] of FIELD_CONFIG) {
         const input = document.querySelector(`[data-nextform-field="${key}"]`);
@@ -122,8 +129,10 @@
           : `Đã đọc ${domTextLines.length} phần tử DOM từ cột PDF. Hãy kiểm tra dữ liệu trước khi điền.`,
         metadata.errors.length ? "warn" : "ok"
       );
+      return metadata;
     } catch (error) {
       showStatus(error.message, "error");
+      return null;
     }
   }
 
@@ -168,21 +177,23 @@
           <strong>Tự động điền metadata</strong>
           <button id="nextform-tool-close" type="button" title="Thu gọn">×</button>
         </div>
-        <div class="nextform-tool-grid">
-          ${FIELD_CONFIG.map(([key, label]) => `
-            <label>${label}
-              ${key === "summary"
-                ? `<textarea data-nextform-field="${key}" rows="3"></textarea>`
-                : `<input data-nextform-field="${key}" type="text">`}
-            </label>
-          `).join("")}
+        <div id="nextform-core-section">
+          <div class="nextform-tool-grid">
+            ${FIELD_CONFIG.map(([key, label]) => `
+              <label>${label}
+                ${key === "summary"
+                  ? `<textarea data-nextform-field="${key}" rows="3"></textarea>`
+                  : `<input data-nextform-field="${key}" type="text">`}
+              </label>
+            `).join("")}
+          </div>
+          <div class="nextform-tool-actions">
+            <button id="nextform-tool-read" type="button">Đọc lại PDF</button>
+            <button id="nextform-tool-fill" type="button">Điền biểu mẫu</button>
+            <button id="nextform-tool-fill-save" type="button">Điền và lưu</button>
+          </div>
         </div>
         <div id="nextform-tool-status" data-kind="info">Bấm “Đọc lại PDF” để bắt đầu.</div>
-        <div class="nextform-tool-actions">
-          <button id="nextform-tool-read" type="button">Đọc lại PDF</button>
-          <button id="nextform-tool-fill" type="button">Điền biểu mẫu</button>
-          <button id="nextform-tool-fill-save" type="button">Điền và lưu</button>
-        </div>
       </div>
     `;
     document.body.appendChild(panel);
@@ -201,11 +212,24 @@
       toggle.setAttribute("aria-expanded", "true");
     });
     toggle.hidden = true;
-    panel.querySelector("#nextform-tool-read").addEventListener("click", refreshPreview);
-    panel.querySelector("#nextform-tool-fill").addEventListener("click", () => handleFill(false));
-    panel.querySelector("#nextform-tool-fill-save").addEventListener("click", () => handleFill(true));
+    panel.querySelector("#nextform-tool-read")?.addEventListener("click", refreshPreview);
+    panel.querySelector("#nextform-tool-fill")?.addEventListener("click", () => handleFill(false));
+    panel.querySelector("#nextform-tool-fill-save")?.addEventListener("click", () => handleFill(true));
     refreshPreview();
   }
+
+  globalThis.NextFormMetadataTool = {
+    FIELD_CONFIG,
+    fillForm,
+    findDialog,
+    findSaveButton,
+    normalize,
+    parser,
+    refreshPreview,
+    setNativeValue,
+    showStatus,
+    waitFor
+  };
 
   createPanel();
 })();

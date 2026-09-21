@@ -28,6 +28,21 @@ Tiện ích không chứa dữ liệu cố định của văn bản mẫu. Mỗi
 
 Nếu PDF vừa đổi nhưng bảng vẫn còn dữ liệu cũ, bấm **Đọc lại PDF**.
 
+## Xử lý hàng loạt
+
+Tại trang `https://sdoc.nextform.vn/nhap-lieu?PhongId=...`, bảng tiện ích có thêm nút **Chạy từ đầu**. Khi bạn xác nhận, tiện ích sẽ:
+
+1. Đưa danh sách hồ sơ về trang đầu và duyệt tới trang cuối.
+2. Chỉ mở các hồ sơ có cột **Trạng thái** bằng `Mới`.
+3. Trong từng hồ sơ, duyệt toàn bộ các trang danh sách văn bản.
+4. Chỉ mở văn bản nếu thiếu ít nhất một trong bốn cột: **Số và ký hiệu**, **Trích yếu nội dung**, **Ngày ban hành**, **Cơ quan ban hành**.
+5. Đọc DOM của PDF, điền metadata, bấm **Lưu thông tin** và đọc popup kết quả.
+6. Nếu lưu thất bại hoặc parser thiếu dữ liệu, ghi lỗi vào nhật ký, đóng cửa sổ sửa và tiếp tục văn bản kế tiếp.
+
+Nút **Dừng** ngăn tiện ích mở hoặc lưu văn bản tiếp theo. Trạng thái chạy được lưu trong `sessionStorage` của tab, vì vậy tiện ích có thể tiếp tục sau khi trang điều hướng hoặc tải lại. Nếu trang tải lại ngay sau khi đã bấm lưu nhưng chưa đọc được popup, văn bản đó được đánh dấu *kết quả chưa xác định* và không tự lưu lần hai để tránh trùng dữ liệu.
+
+> Chế độ hàng loạt thực sự ghi dữ liệu lên hệ thống. Tiện ích luôn yêu cầu xác nhận rõ ràng trước khi bắt đầu.
+
 ## Quy tắc nhận dạng hiện tại
 
 - Loại văn bản: tìm tiêu đề trùng một loại trong danh sách của NextForm.

@@ -90,6 +90,72 @@
 #nextform-tool-status[data-kind="warn"] { background: #fffaeb; color: #b54708; }
 #nextform-tool-status[data-kind="error"] { background: #fef3f2; color: #b42318; }
 
+#nextform-batch-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.nextform-batch-title {
+  margin-bottom: 7px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#nextform-batch-progress {
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#nextform-batch-progress[data-kind="ok"] { background: #ecfdf3; color: #067647; }
+#nextform-batch-progress[data-kind="warn"] { background: #fffaeb; color: #b54708; }
+
+.nextform-batch-actions {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.nextform-batch-actions button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+#nextform-batch-start { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+#nextform-batch-stop { background: #fff; border-color: #ef4444; color: #b91c1c; }
+.nextform-batch-actions button:disabled { opacity: .5; cursor: not-allowed; }
+
+#nextform-batch-log {
+  max-height: 150px;
+  margin-top: 8px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+#nextform-batch-log div { padding: 5px 7px; border-bottom: 1px solid #e2e8f0; }
+#nextform-batch-log div:last-child { border-bottom: 0; }
+#nextform-batch-log div[data-kind="ok"] { color: #067647; }
+#nextform-batch-log div[data-kind="warn"] { color: #b54708; }
+#nextform-batch-log div[data-kind="error"] { color: #b42318; }
+#nextform-batch-log time { color: #64748b; font-variant-numeric: tabular-nums; }
+
 .nextform-tool-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

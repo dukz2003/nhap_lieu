@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "NextForm - Tự động điền metadata",
-  "version": "1.0.0",
-  "description": "Đọc lớp chữ của PDF trên sdoc.nextform.vn và điền metadata văn bản.",
+  "version": "1.1.0",
+  "description": "Đọc PDF, điền metadata và xử lý hàng loạt hồ sơ mới trên sdoc.nextform.vn.",
   "content_scripts": [
     {
       "matches": ["https://sdoc.nextform.vn/nhap-lieu*"],
-      "js": ["parser.js", "content.js"],
+      "js": ["parser.js", "batch.js", "content.js", "batch-controller.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
