@@ -88,6 +88,21 @@ assert.equal(
   "Về việc nâng bậc lương thường xuyên viên chức bà Vũ Thị Lụa"
 );
 
+const multiLineSubjectLines = [
+  { text: "ỦY BAN NHÂN DÂN", top: 3.29, left: 14.52, page: 0 },
+  { text: "HUYỆN ĐỨC CƠ", top: 5.5, left: 16.35, page: 0 },
+  { text: "Số 230L/QĐ-UBND", top: 7.76, left: 15.25, page: 0 },
+  { text: "Đức Cơ, ngày 01 tháng 10 năm 2018", top: 7.91, left: 54.42, page: 0 },
+  { text: "QUYẾT ĐỊNH", top: 10.41, left: 45.79, page: 0 },
+  { text: "Về việc cho phép ông Trần Đình Tú ? bà Mạc Thị Lương", top: 12.04, left: 25.49, page: 0 },
+  { text: "được chuyển mục đích sử dụng đất", top: 14.17, left: 36.14, page: 0 },
+  { text: "Điều 1. Cho phép ông Trần Đình Tú ? bà mạc Thị Lương, thường trú tại: Làng Ấp", top: 51.03, left: 17.57, page: 0 }
+];
+assert.equal(
+  parseDocument(multiLineSubjectLines).summary,
+  "Về việc cho phép ông Trần Đình Tú - bà Mạc Thị Lương được chuyển mục đích sử dụng đất"
+);
+
 const corruptedDayLines = sampleDecisionLines.map((line) => ({
   ...line,
   text: line.text.replace("ngày 04 tháng 9", "ngày 0y tháng 9")

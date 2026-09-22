@@ -88,6 +88,35 @@
       .join(" ");
   }
 
+  function isStructuralHeading(value) {
+    return /^(?:QUYẾT ĐỊNH|ĐIỀU\s*\d|CĂN CỨ|(?:UỶ|ỦY)\s+BAN|CHỦ TỊCH|SỐ\s*:?(?:\s|$)|ĐỘC LẬP|CỘNG HÒA|CỘNG HOÀ)/iu.test(clean(value));
+  }
+
+  function collectSubjectText(lines, startIndex) {
+    const first = lines[startIndex];
+    if (!first) return "";
+    const parts = [first.text];
+    if (!Number.isFinite(first.top)) return clean(parts.join(" "));
+
+    for (let index = startIndex + 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (line.page !== first.page || !Number.isFinite(line.top)) break;
+      const distance = line.top - first.top;
+      if (distance <= 0 || distance > 6 || isStructuralHeading(line.text)) break;
+      parts.push(line.text);
+    }
+    return clean(parts.join(" "));
+  }
+
+  function normalizeHonorificSeparators(value) {
+    return clean(value).replace(/\s*\?\s*(?=(?:ông|bà)(?:\s|:|$))/iu, " - ");
+  }
+
+  function containsHonorific(value) {
+    if (/(?:^|[^\p{L}])(ông|bà)(?=\s|:|$)/iu.test(value)) return true;
+    return /(?:^|[^A-Z])(ONG|BA)(?=\s|:|$)/u.test(comparable(value));
+  }
+
   function parseIssueDate(value) {
     const match = String(value || "").match(
       /ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})/u
@@ -107,6 +136,7 @@
         text: clean(typeof line === "string" ? line : line.text),
         top: Number.isFinite(line && line.top) ? line.top : Number.POSITIVE_INFINITY,
         left: Number.isFinite(line && line.left) ? line.left : Number.POSITIVE_INFINITY,
+        page: Number.isFinite(line && line.page) ? line.page : 0,
         index
       }))
       .filter((line) => line.text);
@@ -147,7 +177,9 @@
     const articleOneIndex = normalizedLines.findIndex((line) => /^Điều\s*1\s*[.:]/iu.test(line.text));
     const articleOneLines = [];
     if (articleOneIndex >= 0) {
+      const articlePage = normalizedLines[articleOneIndex].page;
       for (let index = articleOneIndex; index < normalizedLines.length && articleOneLines.length < 8; index += 1) {
+        if (normalizedLines[index].page !== articlePage) break;
         if (index > articleOneIndex && /^Điều\s*[2-9]\s*[.:]/iu.test(normalizedLines[index].text)) break;
         articleOneLines.push(normalizedLines[index].text);
       }
@@ -161,13 +193,17 @@
     }
     let person = "";
     if (personMatch) {
-      const personName = clean(personMatch[2].replace(/\s+(?:và|hoặc)\s+(?:ông|bà)\b.*$/iu, ""));
+      const personName = clean(personMatch[2]
+        .replace(/\s+(?:và|hoặc)\s+(?:ông|bà)(?=\s|:|$).*$/iu, "")
+        .replace(/\s*\?\s*(?=(?:ông|bà)(?:\s|:|$))/iu, " - "));
       if (personName && !/^(?:và|hoặc|các|những)$/iu.test(personName)) {
         person = clean(`${personMatch[1].toLocaleLowerCase("vi-VN")} ${normalizePersonName(personName)}`);
       }
     }
-    let summary = subjectLine ? subjectLine.text.replace(/[.:;]+$/u, "") : "";
-    if (person && !comparable(summary).includes(comparable(person))) summary = clean(`${summary} ${person}`);
+    let summary = subjectLine
+      ? normalizeHonorificSeparators(collectSubjectText(normalizedLines, normalizedLines.indexOf(subjectLine)).replace(/[.:;]+$/u, ""))
+      : "";
+    if (person && !containsHonorific(summary)) summary = clean(`${summary} ${person}`);
     if (!summary) errors.push("Không nhận diện được trích yếu.");
 
     return {
@@ -184,15 +220,18 @@
     // Dữ liệu chạy thật luôn được lấy từ DOM của cột PDF bên trái.
     // Không dùng nội dung của file test hay bất kỳ giá trị văn bản cố định nào.
     const pdfColumn = doc.querySelector?.("[role='dialog'] .form-view-pdf-custom") || doc;
+    const pages = Array.from(pdfColumn.querySelectorAll?.(".rpv-core__inner-page") || []);
+    const pageIndexes = new Map(pages.map((page, index) => [page, index]));
     return Array.from(pdfColumn.querySelectorAll(".rpv-core__text-layer-text[role='presentation']"))
       .map((element, index) => ({
         text: clean(element.textContent),
         top: percentage(element.style.top),
         left: percentage(element.style.left),
+        page: pageIndexes.get(element.closest?.(".rpv-core__inner-page")) ?? 0,
         index
       }))
       .filter((line) => line.text)
-      .sort((a, b) => (a.top - b.top) || (a.left - b.left) || (a.index - b.index));
+      .sort((a, b) => (a.page - b.page) || (a.top - b.top) || (a.left - b.left) || (a.index - b.index));
   }
 
   return { DOCUMENT_TYPES, clean, comparable, parseDocument, parseIssueDate, readPdfTextLayer };
