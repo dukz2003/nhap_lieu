@@ -117,6 +117,45 @@
     return /(?:^|[^A-Z])(ONG|BA)(?=\s|:|$)/u.test(comparable(value));
   }
 
+  function numberValueFromText(value) {
+    const match = clean(value).match(/^Số\s*:?\s*(.*)$/iu);
+    return match ? clean(match[1]) : "";
+  }
+
+  function looksLikeDocumentNumber(value) {
+    const candidate = clean(value);
+    if (!candidate || !/\d/u.test(candidate)) return false;
+    const compact = candidate.replace(/\s+/g, "");
+    if (!/^[\p{L}\p{N}._/-]+$/u.test(compact)) return false;
+    return /[/-]/u.test(compact) || /^\d+[A-Za-z]?$/u.test(compact);
+  }
+
+  function documentNumberCandidate(lines, index) {
+    const line = lines[index];
+    let value = numberValueFromText(line.text);
+    if (looksLikeDocumentNumber(value)) return value;
+
+    const next = lines[index + 1];
+    if (!next || next.page !== line.page || !Number.isFinite(line.top) || !Number.isFinite(next.top)) return "";
+    if (Math.abs(next.top - line.top) > 2.5) return "";
+    const combined = clean(`${value} ${next.text}`);
+    return looksLikeDocumentNumber(combined) ? combined : "";
+  }
+
+  function findDocumentNumber(lines, preferredPages) {
+    const candidates = lines.flatMap((line, index) =>
+      /^Số\s*:?\s*.*$/iu.test(line.text)
+        ? [{ page: line.page, value: documentNumberCandidate(lines, index) }]
+        : []
+    ).filter((candidate) => candidate.value);
+
+    for (const page of preferredPages) {
+      const found = candidates.find((candidate) => candidate.page === page);
+      if (found) return found.value;
+    }
+    return "";
+  }
+
   function parseIssueDate(value) {
     const match = String(value || "").match(
       /ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(\d{4})/u
@@ -146,10 +185,12 @@
 
     const typeCandidates = normalizedLines.filter((line) => line.top < 35 || !Number.isFinite(line.top));
     let documentType = "";
+    let documentTypeLine = null;
     for (const expected of DOCUMENT_TYPES) {
       const found = typeCandidates.find((line) => comparable(line.text) === comparable(expected));
       if (found) {
         documentType = titleCaseType(expected);
+        documentTypeLine = found;
         break;
       }
     }
@@ -157,10 +198,6 @@
 
     const issueDate = parseIssueDate(fullText);
     if (!issueDate) errors.push("Không nhận diện được ngày ban hành.");
-
-    const numberLine = normalizedLines.find((line) => /^\s*Số\s*:?(?:\s|$)/iu.test(line.text));
-    const documentNumber = numberLine ? clean(numberLine.text.replace(/^\s*Số\s*:?[\s]*/iu, "")) : "";
-    if (!documentNumber) errors.push("Không nhận diện được số hiệu văn bản.");
 
     const headerLines = normalizedLines.filter((line) => line.top < 18 && line.left < 40);
     const agencyRoot = headerLines.find((line) => /(?:UỶ|ỦY)\s+BAN\s+NHÂN\s+DÂN/iu.test(line.text));
@@ -174,6 +211,17 @@
     if (!issuingAgency) errors.push("Không nhận diện được cơ quan ban hành.");
 
     const subjectLine = normalizedLines.find((line) => /^Về\s+việc\b/iu.test(line.text));
+    const issueDateLine = normalizedLines.find((line) => parseIssueDate(line.text));
+    const preferredNumberPages = Array.from(new Set([
+      subjectLine?.page,
+      documentTypeLine?.page,
+      issueDateLine?.page,
+      agencyRoot?.page,
+      0
+    ].filter((page) => Number.isFinite(page))));
+    const documentNumber = findDocumentNumber(normalizedLines, preferredNumberPages);
+    if (!documentNumber) errors.push("Không nhận diện được số hiệu văn bản.");
+
     const articleOneIndex = normalizedLines.findIndex((line) => /^Điều\s*1\s*[.:]/iu.test(line.text));
     const articleOneLines = [];
     if (articleOneIndex >= 0) {

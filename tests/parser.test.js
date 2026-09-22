@@ -31,6 +31,16 @@ const numberWithoutColonLines = sampleDecisionLines.map((line) => ({
 }));
 assert.equal(parseDocument(numberWithoutColonLines).documentNumber, "113/QĐ-UBND");
 
+const splitNumberLines = sampleDecisionLines.flatMap((line) =>
+  line.text === "Số: 113/QĐ-UBND"
+    ? [
+      { ...line, text: "Số" },
+      { ...line, text: "113/QĐ-UBND", left: line.left + 4 }
+    ]
+    : [line]
+);
+assert.equal(parseDocument(splitNumberLines).documentNumber, "113/QĐ-UBND");
+
 // Bộ dữ liệu thứ hai cố ý dùng ngày, địa phương, số hiệu và tên người khác để
 // bảo đảm parser suy ra dữ liệu đầu vào thay vì trả về giá trị mẫu cố định.
 const anotherDecisionLines = [
@@ -96,12 +106,15 @@ const multiLineSubjectLines = [
   { text: "QUYẾT ĐỊNH", top: 10.41, left: 45.79, page: 0 },
   { text: "Về việc cho phép ông Trần Đình Tú ? bà Mạc Thị Lương", top: 12.04, left: 25.49, page: 0 },
   { text: "được chuyển mục đích sử dụng đất", top: 14.17, left: 36.14, page: 0 },
-  { text: "Điều 1. Cho phép ông Trần Đình Tú ? bà mạc Thị Lương, thường trú tại: Làng Ấp", top: 51.03, left: 17.57, page: 0 }
+  { text: "Điều 1. Cho phép ông Trần Đình Tú ? bà mạc Thị Lương, thường trú tại: Làng Ấp", top: 51.03, left: 17.57, page: 0 },
+  { text: "Số: 346/TTr-TNMT", top: 10.81, left: 18.64, page: 1 },
+  { text: "Số thứ tự thửa đất: 137 ? 138", top: 9.78, left: 5.94, page: 2 }
 ];
 assert.equal(
   parseDocument(multiLineSubjectLines).summary,
   "Về việc cho phép ông Trần Đình Tú - bà Mạc Thị Lương được chuyển mục đích sử dụng đất"
 );
+assert.equal(parseDocument(multiLineSubjectLines).documentNumber, "230L/QĐ-UBND");
 
 const corruptedDayLines = sampleDecisionLines.map((line) => ({
   ...line,
