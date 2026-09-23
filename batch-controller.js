@@ -262,7 +262,10 @@
     const pdfLines = await waitForStablePdfLines(state);
 
     const metadata = batch.applyDateTemplate(
-      core.parser.parseDocument(pdfLines),
+      core.parser.applyDossierTitle(
+        core.parser.parseDocument(pdfLines),
+        state.currentDossierTitle || core.findDossierTitle?.()
+      ),
       state.dateTemplate
     );
     if (metadata.errors.length) throw new Error(metadata.errors.join(" "));
@@ -325,6 +328,10 @@
     }
 
     await goToPage(state, state.detailPage, DOCUMENT_HEADERS);
+    if (!state.currentDossierTitle) {
+      state.currentDossierTitle = core.findDossierTitle?.() || "";
+      saveState(state);
+    }
 
     while (true) {
       ensureCurrentRun(state);
@@ -618,6 +625,7 @@
       state.dateTemplate = normalizedDateTemplate;
       if (detailContext) {
         state.currentDossierKey = currentUrlParams.get("HoSoId") || "";
+        state.currentDossierTitle = core.findDossierTitle?.() || "";
         state.detailPage = currentPagination()?.pageIndex ?? 0;
       }
       saveState(state, { allowRestart: true });
@@ -650,10 +658,18 @@
       manualButton.disabled = true;
       try {
         const parsed = await core.prepareManualReview();
-        const patched = batch.applyDateTemplate(parsed, state.dateTemplate);
-        if (patched !== parsed) {
+        const titled = core.parser.applyDossierTitle(
+          parsed,
+          state.currentDossierTitle || core.findDossierTitle?.()
+        );
+        const patched = batch.applyDateTemplate(titled, state.dateTemplate);
+        if (titled !== parsed || patched !== titled) {
           core.setPanelValues(patched);
+        }
+        if (patched !== titled) {
           core.showStatus(`Đã áp dụng ngày mẫu ${state.dateTemplate}. Kiểm tra các trường rồi bấm “Submit và lưu”.`, "warn");
+        } else if (titled !== parsed) {
+          core.showStatus("Đã áp dụng loại văn bản và cơ quan ban hành từ tiêu đề hồ sơ. Kiểm tra các trường rồi bấm “Submit và lưu”.", "warn");
         }
         addLog(state, "Đã đưa dữ liệu PDF đang mở lên giao diện để kiểm tra thủ công.", "info");
       } catch (error) {

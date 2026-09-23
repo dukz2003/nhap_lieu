@@ -1,5 +1,10 @@
 const assert = require("node:assert/strict");
-const { parseDocument } = require("../parser.js");
+const {
+  applyDossierTitle,
+  parseDocument,
+  parseDocumentTypeFromTitle,
+  parseIssuingAgencyFromTitle
+} = require("../parser.js");
 
 // Dữ liệu dưới đây chỉ là fixture để kiểm thử parser. File này không được nạp
 // bởi extension; khi chạy thật, content.js đọc các span từ DOM của cột PDF.
@@ -115,6 +120,51 @@ assert.equal(
   "Về việc cho phép ông Trần Đình Tú - bà Mạc Thị Lương được chuyển mục đích sử dụng đất"
 );
 assert.equal(parseDocument(multiLineSubjectLines).documentNumber, "230L/QĐ-UBND");
+
+assert.equal(
+  parseDocumentTypeFromTitle("Tập lưu Công văn tháng 03 năm 2019 của UBND huyện Đức Cơ"),
+  "Công văn"
+);
+assert.equal(
+  parseDocumentTypeFromTitle("Tập lưu Chỉ thị năm 2018 của UBND huyện Đức Cơ"),
+  "Chỉ thị"
+);
+assert.equal(
+  parseDocumentTypeFromTitle("Tập lưu Quyết định tháng 10 năm 2018 của UBND huyện Đức Cơ (tập 01)"),
+  "Quyết định"
+);
+assert.equal(
+  parseIssuingAgencyFromTitle("Tập lưu Công văn tháng 03 năm 2019 của UBND huyện Đức Cơ"),
+  "UBND huyện Đức Cơ"
+);
+assert.equal(
+  parseIssuingAgencyFromTitle("Tập lưu Quyết định tháng 10 năm 2018 của UBND huyện Đức Cơ (tập 01)"),
+  "UBND huyện Đức Cơ"
+);
+assert.deepEqual(
+  applyDossierTitle(
+    { documentType: "Quyết định", issuingAgency: "ỦY BAN NHÂN DÂN HUYỆN ĐỨC CƠ", errors: ["Không nhận diện được loại văn bản."] },
+    "Tập lưu Công văn tháng 03 năm 2019 của UBND huyện Đức Cơ"
+  ),
+  { documentType: "Công văn", issuingAgency: "UBND huyện Đức Cơ", errors: [] }
+);
+
+const congVanSummaryLines = [
+  { text: "ỦY BAN NHÂN DÂN", top: 3.29, left: 14.52, page: 0 },
+  { text: "HUYỆN ĐỨC CƠ", top: 5.5, left: 16.35, page: 0 },
+  { text: "Số: 12/CV-UBND", top: 7.76, left: 15.25, page: 0 },
+  { text: "Đức Cơ, ngày 01 tháng 03 năm 2019", top: 7.91, left: 54.42, page: 0 },
+  { text: "CÔNG VĂN", top: 9.5, left: 45.79, page: 0 },
+  { text: "V/v góp ý Dự thảo Quyết định quy định", top: 10.99, left: 14.06, page: 0 },
+  { text: "mức hỗ trợ ổn định đời sống và sản xuất", top: 12.69, left: 13.86, page: 0 },
+  { text: "cho người dân sau tái định cư các dự án", top: 14.18, left: 13.87, page: 0 },
+  { text: "thuỷ lợi, thuỷ điện trên địa bàn tỉnh", top: 15.78, left: 13.87, page: 0 },
+  { text: "Điều 1. Tổ chức thực hiện theo quy định hiện hành.", top: 51.03, left: 17.57, page: 0 }
+];
+assert.equal(
+  parseDocument(congVanSummaryLines).summary,
+  "Về việc góp ý Dự thảo Quyết định quy định mức hỗ trợ ổn định đời sống và sản xuất cho người dân sau tái định cư các dự án thuỷ lợi, thuỷ điện trên địa bàn tỉnh"
+);
 
 const corruptedDayLines = sampleDecisionLines.map((line) => ({
   ...line,

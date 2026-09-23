@@ -13,6 +13,7 @@
     "Quy định",
     "Thông cáo",
     "Thông báo",
+    "Công văn",
     "Hướng dẫn",
     "Chương trình",
     "Giấy chứng nhận đủ điều kiện về an ninh, trật tự",
@@ -59,6 +60,40 @@
   function titleCaseType(type) {
     const key = comparable(type);
     return DOCUMENT_TYPES.find((item) => comparable(item) === key) || clean(type);
+  }
+
+  function parseDocumentTypeFromTitle(title) {
+    const normalized = comparable(title);
+    return [...DOCUMENT_TYPES]
+      .sort((a, b) => b.length - a.length)
+      .find((type) => normalized.includes(comparable(type))) || "";
+  }
+
+  function parseIssuingAgencyFromTitle(title) {
+    const match = clean(title).match(
+      /\bcủa\s+((?:UBND|ỦY\s+BAN\s+NHÂN\s+DÂN)\b.*?)(?=\s*\([^)]*\)\s*$|\s*$)/iu
+    );
+    return match ? clean(match[1]).replace(/[.;:]+$/u, "") : "";
+  }
+
+  function applyDossierTitle(metadata, title) {
+    const dossierTitle = clean(title);
+    if (!dossierTitle || !metadata) return metadata;
+
+    const documentType = parseDocumentTypeFromTitle(dossierTitle);
+    const issuingAgency = parseIssuingAgencyFromTitle(dossierTitle);
+    if (!documentType && !issuingAgency) return metadata;
+
+    const errors = (metadata.errors || []).filter((error) =>
+      !(documentType && /loại văn bản/iu.test(error)) &&
+      !(issuingAgency && /cơ quan ban hành/iu.test(error))
+    );
+    return {
+      ...metadata,
+      documentType: documentType || metadata.documentType,
+      issuingAgency: issuingAgency || metadata.issuingAgency,
+      errors
+    };
   }
 
   function diacriticScore(value) {
@@ -210,7 +245,7 @@
     issuingAgency = canonicalAgency(issuingAgency);
     if (!issuingAgency) errors.push("Không nhận diện được cơ quan ban hành.");
 
-    const subjectLine = normalizedLines.find((line) => /^Về\s+việc\b/iu.test(line.text));
+    const subjectLine = normalizedLines.find((line) => /^(?:Về\s+việc|V\/v)\b/iu.test(line.text));
     const issueDateLine = normalizedLines.find((line) => parseIssueDate(line.text));
     const preferredNumberPages = Array.from(new Set([
       subjectLine?.page,
@@ -251,6 +286,7 @@
     let summary = subjectLine
       ? normalizeHonorificSeparators(collectSubjectText(normalizedLines, normalizedLines.indexOf(subjectLine)).replace(/[.:;]+$/u, ""))
       : "";
+    if (/^V\/v\b/iu.test(summary)) summary = `Về việc${summary.slice(3)}`;
     if (person && !containsHonorific(summary)) summary = clean(`${summary} ${person}`);
     if (!summary) errors.push("Không nhận diện được trích yếu.");
 
@@ -282,5 +318,15 @@
       .sort((a, b) => (a.page - b.page) || (a.top - b.top) || (a.left - b.left) || (a.index - b.index));
   }
 
-  return { DOCUMENT_TYPES, clean, comparable, parseDocument, parseIssueDate, readPdfTextLayer };
+  return {
+    DOCUMENT_TYPES,
+    applyDossierTitle,
+    clean,
+    comparable,
+    parseDocument,
+    parseDocumentTypeFromTitle,
+    parseIssueDate,
+    parseIssuingAgencyFromTitle,
+    readPdfTextLayer
+  };
 });

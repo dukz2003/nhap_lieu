@@ -71,6 +71,12 @@
     return dialog?.querySelector(`[placeholder="${CSS.escape(placeholder)}"]`) || null;
   }
 
+  function findDossierTitle() {
+    return Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"))
+      .map((element) => parser.clean(element.innerText || element.textContent))
+      .find((text) => /^Tập lưu\b/iu.test(text)) || "";
+  }
+
   async function selectDocumentType(type) {
     const dialog = findDialog();
     if (!dialog) throw new Error("Không tìm thấy cửa sổ cập nhật văn bản.");
@@ -152,7 +158,10 @@
         showStatus("Trang danh sách: dùng phần Xử lý hàng loạt bên dưới.", "info");
         return null;
       }
-      const metadata = parser.parseDocument(domTextLines);
+      const metadata = parser.applyDossierTitle(
+        parser.parseDocument(domTextLines),
+        findDossierTitle()
+      );
       setPanelValues(metadata);
       showStatus(
         metadata.errors.length
@@ -297,6 +306,7 @@
     FIELD_CONFIG,
     fillForm,
     findDialog,
+    findDossierTitle,
     findSaveButton,
     finishManualReview,
     normalize,
