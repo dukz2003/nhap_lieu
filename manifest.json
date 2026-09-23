@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NextForm - Tự động điền metadata",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Đọc PDF, điền metadata và xử lý hàng loạt hồ sơ mới trên sdoc.nextform.vn.",
   "content_scripts": [
     {

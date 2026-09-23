@@ -166,6 +166,32 @@ assert.equal(
   "Về việc góp ý Dự thảo Quyết định quy định mức hỗ trợ ổn định đời sống và sản xuất cho người dân sau tái định cư các dự án thuỷ lợi, thuỷ điện trên địa bàn tỉnh"
 );
 
+const recipientSuffixLines = [
+  { text: "ỦY BAN NHÂN DÂN", top: 3.29, left: 14.52, page: 0 },
+  { text: "HUYỆN ĐỨC CƠ", top: 5.5, left: 16.35, page: 0 },
+  { text: "Số: 07g/UBND-KT", top: 7.76, left: 15.25, page: 0 },
+  { text: "Đức Cơ, ngày 01 tháng 08 năm 2019", top: 7.91, left: 54.42, page: 0 },
+  { text: "CÔNG VĂN", top: 9.5, left: 45.79, page: 0 },
+  { text: "Về việc giao nhiệm vụ Kính gửi", top: 10.99, left: 14.06, page: 0 },
+  { text: "Điều 1. Giao nhiệm vụ theo quy định.", top: 51.03, left: 17.57, page: 0 }
+];
+assert.equal(
+  parseDocument(recipientSuffixLines).summary,
+  "Về việc giao nhiệm vụ"
+);
+
+const recipientWithAddressLines = recipientSuffixLines.map((line) => ({
+  ...line,
+  text: line.text.replace(
+    "Về việc giao nhiệm vụ Kính gửi",
+    "Về việc tăng cường công tác quản lý nhà nước về tần số và thiết bị vô tuyến điện Kính gửi:"
+  )
+}));
+assert.equal(
+  parseDocument(recipientWithAddressLines).summary,
+  "Về việc tăng cường công tác quản lý nhà nước về tần số và thiết bị vô tuyến điện"
+);
+
 const corruptedDayLines = sampleDecisionLines.map((line) => ({
   ...line,
   text: line.text.replace("ngày 04 tháng 9", "ngày 0y tháng 9")

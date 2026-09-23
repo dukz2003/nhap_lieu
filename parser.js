@@ -147,6 +147,12 @@
     return clean(value).replace(/\s*\?\s*(?=(?:ông|bà)(?:\s|:|$))/iu, " - ");
   }
 
+  function removeRecipientSuffix(value) {
+    const subject = clean(value);
+    const match = subject.match(/\s+Kính\s+gửi\b[\s\S]*$/iu);
+    return match ? clean(subject.slice(0, match.index)) : subject;
+  }
+
   function containsHonorific(value) {
     if (/(?:^|[^\p{L}])(ông|bà)(?=\s|:|$)/iu.test(value)) return true;
     return /(?:^|[^A-Z])(ONG|BA)(?=\s|:|$)/u.test(comparable(value));
@@ -284,7 +290,9 @@
       }
     }
     let summary = subjectLine
-      ? normalizeHonorificSeparators(collectSubjectText(normalizedLines, normalizedLines.indexOf(subjectLine)).replace(/[.:;]+$/u, ""))
+      ? removeRecipientSuffix(normalizeHonorificSeparators(
+        collectSubjectText(normalizedLines, normalizedLines.indexOf(subjectLine)).replace(/[.:;]+$/u, "")
+      ))
       : "";
     if (/^V\/v\b/iu.test(summary)) summary = `Về việc${summary.slice(3)}`;
     if (person && !containsHonorific(summary)) summary = clean(`${summary} ${person}`);

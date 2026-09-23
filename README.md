@@ -56,6 +56,7 @@ Nếu đang mở trực tiếp trang danh sách văn bản của một hồ sơ 
 - **Quét thủ công** cũng áp dụng quy tắc tiêu đề hồ sơ trước khi hiển thị dữ liệu; nếu không tìm thấy tiêu đề thì vẫn dùng kết quả đọc từ PDF.
 - Số hiệu: lấy nội dung sau `Số:` hoặc `Số` (không có dấu hai chấm) trên trang chính của văn bản; bỏ qua các dòng phụ như `Số thứ tự...` và không lấy số hiệu của phụ lục/tờ trình ở trang khác.
 - Trích yếu: lấy dòng bắt đầu bằng `Về việc` và các dòng tiếp theo trên cùng trang, rồi ghép `ông/bà + họ tên` từ Điều 1 nếu phần trích yếu chưa có sẵn người; hỗ trợ cả dạng có dấu `:` sau `ông/bà` và chuẩn hóa dấu `?` OCR giữa hai người thành `-`.
+- Nếu trích yếu kéo theo phần người nhận, cắt từ cụm `Kính gửi` trở đi; ví dụ `Về việc giao nhiệm vụ Kính gửi` chỉ còn `Về việc giao nhiệm vụ`.
 
 ## Kiểm thử
 
