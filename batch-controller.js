@@ -692,10 +692,10 @@
       const dialogIsOpen = Boolean(core.findDialog());
       if (dialogIsOpen === dialogWasOpen) return;
       dialogWasOpen = dialogIsOpen;
+      const coreSection = document.querySelector("#nextform-core-section");
+      if (coreSection) coreSection.hidden = !dialogIsOpen;
       if (!dialogIsOpen) {
         core.finishManualReview();
-        const coreSection = document.querySelector("#nextform-core-section");
-        if (coreSection) coreSection.hidden = true;
       }
       updateUi();
     }, 120);
